@@ -1,1 +1,4 @@
 fastapi[standard]
+pydantic-settings==2.10.1
+sqlalchemy[asyncio]
+asyncpg==0.30.0
