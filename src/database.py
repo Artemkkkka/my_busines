@@ -1,12 +1,13 @@
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from config import settings
+from .config import settings
 
 
 class DatabaseHelper:
     def __init__(self, url):
         self.engine = create_async_engine(
             url=url,
+            # echo=1,
         )
         self.session_factory = async_sessionmaker(
             bind=self.engine,

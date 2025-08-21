@@ -11,3 +11,11 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+  api:
+    build: .
+    environment:
+      DATABASE_URL: postgresql+asyncpg://default_user:default_pass@database:5432/busines_db
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./:/app
