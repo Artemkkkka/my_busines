@@ -11,7 +11,8 @@ from src.teams.router import teams_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    
+    async with db_helper.engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
     yield
     await db_helper.dispose()
 
