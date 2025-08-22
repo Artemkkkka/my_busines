@@ -6,7 +6,7 @@ from sqlalchemy.orm import (
     mapped_column,
 )
 
-from config import settings
+from .config import settings
 
 
 class Base(DeclarativeBase):
