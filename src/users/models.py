@@ -1,7 +1,7 @@
 import enum
 
-from sqlalchemy import DateTime, Enum, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import DateTime, Enum, func, ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.models import Base
 
@@ -28,3 +28,6 @@ class User(Base):
     )
 
     is_superuser: Mapped[bool] = mapped_column(default=False)
+
+    team: Mapped["Team"] = relationship(back_populates="members", foreign_keys="User.team_id")
+    team_fk: Mapped[int] = mapped_column(ForeignKey("team.id"))
