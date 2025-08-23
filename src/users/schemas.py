@@ -13,3 +13,7 @@ class UserRead(BaseModel):
     id: int
     email: str
     role_in_team: str
+
+
+class UserUpdate(UserCreate):
+    pass
