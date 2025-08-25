@@ -1,5 +1,6 @@
 import enum
 
+from fastapi_users_db_sqlalchemy  import SQLAlchemyBaseUserTable
 from sqlalchemy import DateTime, Enum, func, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -12,9 +13,7 @@ class TeamRole(str, enum.Enum):
     employee = "employee"
 
 
-class User(Base):
-    email: Mapped[str]
-    password: Mapped[str]
+class User(Base, SQLAlchemyBaseUserTable[int]):
     role_in_team: Mapped[TeamRole] = mapped_column(
         Enum(TeamRole),
         nullable=False,
@@ -27,7 +26,6 @@ class User(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    is_superuser: Mapped[bool] = mapped_column(default=False)
 
     team: Mapped["Team"] = relationship(back_populates="members", foreign_keys="User.team_id")
-    team_fk: Mapped[int] = mapped_column(ForeignKey("team.id"))
+    team_id: Mapped[int] = mapped_column(ForeignKey("team.id"), nullable=True)
