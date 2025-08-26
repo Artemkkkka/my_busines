@@ -26,6 +26,5 @@ class User(Base, SQLAlchemyBaseUserTable[int]):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-
     team: Mapped["Team"] = relationship(back_populates="members", foreign_keys="User.team_id")
     team_id: Mapped[int] = mapped_column(ForeignKey("team.id"), nullable=True)

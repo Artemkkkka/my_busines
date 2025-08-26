@@ -13,4 +13,4 @@ class UserCreate(schemas.BaseUserCreate):
 
 class UserUpdate(BaseModel):
     email: Optional[EmailStr]
-
+    
