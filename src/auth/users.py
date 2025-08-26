@@ -1,5 +1,3 @@
-import uuid
-
 from fastapi_users import FastAPIUsers
 
 from .schemas import UserUpdate
@@ -11,7 +9,7 @@ from src.auth.backend import auth_backend
 fastapi_users = FastAPIUsers[User, int](
     get_user_manager,
     [auth_backend],
-    # UserUpdate,
 )
 
 current_user = fastapi_users.current_user()
+current_superuser = fastapi_users.current_user(superuser=True)

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .crud import (
@@ -11,8 +12,13 @@ from .crud import (
     remove_team_users as crud_remove_team_users,
 )
 from .schemas import TeamCreate, TeamRead, TeamUpdate, TeamMemberRead, TeamMembersDelete
+from.permissions import require_team_admin_or_superuser
 from src.database import db_helper
 from src.core.dependencies import CurrentUser, SessionDep
+from src.users.models import User
+
+
+http_bearer = HTTPBearer(auto_error=True)
 
 
 teams_router = APIRouter(
@@ -25,7 +31,7 @@ teams_router = APIRouter(
 async def create_team(
     payload: TeamCreate,
     session: SessionDep,
-    user: CurrentUser,
+    user: User = Depends(require_team_admin_or_superuser),
 ):
     team = await crud_create_team(payload, session, user)
 
@@ -36,6 +42,7 @@ async def create_team(
 async def get_team(
     team_id: int,
     session: SessionDep,
+    credentials: HTTPAuthorizationCredentials = Depends(http_bearer),
 ):
     team = await crud_get_team(team_id, session)
 
@@ -45,6 +52,7 @@ async def get_team(
 @teams_router.get("/")
 async def get_all_teams(
     session: SessionDep,
+    redentials: HTTPAuthorizationCredentials = Depends(http_bearer),
 ) -> list[TeamRead]:
     users = await crud_get_all_teams(session=session)
     return users
@@ -55,6 +63,7 @@ async def update_team(
     team_id: int,
     payload: TeamUpdate,
     session: SessionDep,
+    user: User = Depends(require_team_admin_or_superuser),
 ):
     team = await crud_update_team(session, team_id, payload.name, payload.members)
     return team
@@ -64,6 +73,7 @@ async def update_team(
 async def delete_team(
     team_id: int,
     session: SessionDep,
+    user: User = Depends(require_team_admin_or_superuser),
 ):
     await crud_delete_team(session, team_id)
 
@@ -77,6 +87,7 @@ async def delete_team(
 async def list_team_users(
     team_id: int,
     session: SessionDep,
+    credentials: HTTPAuthorizationCredentials = Depends(http_bearer),
 
 ):
     users = await crud_list_team_users(team_id, session)
@@ -91,6 +102,7 @@ async def remove_team_users(
     team_id: int,
     payload: TeamMembersDelete,
     session: SessionDep,
+    user: User = Depends(require_team_admin_or_superuser),
 ):
     users = await crud_remove_team_users(team_id, payload, session)
     return users

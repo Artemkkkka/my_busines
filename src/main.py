@@ -16,6 +16,7 @@ from src.core.dependencies import CurrentUser
 from src.teams.router import teams_router
 from src.users.crud import delete_user as delete_user_crud
 from src.users.router import users_router
+from src.users.actions.route_superuser import superuser_router
 
 
 app = FastAPI()
@@ -25,7 +26,7 @@ http_bearer = HTTPBearer(auto_error=True)
 
 app.include_router(
     teams_router,
-    dependencies=[Depends(http_bearer)],
+    # dependencies=[Depends(http_bearer)],
 )
 
 app.include_router(
@@ -53,7 +54,10 @@ app.include_router(
     users_router,
     prefix="/users",
     tags=["users"],
-    dependencies=[Depends(http_bearer)],
+
+)
+app.include_router(
+    superuser_router,
 )
 
 

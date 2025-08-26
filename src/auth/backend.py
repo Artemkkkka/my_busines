@@ -27,7 +27,7 @@ class AccessToken(Base, SQLAlchemyBaseAccessTokenTable[int]):
 
 async def get_access_token_db(
     session: AsyncSession = Depends(db_helper.session_getter),
-):  
+):
     yield SQLAlchemyAccessTokenDatabase(session, AccessToken)
 
 

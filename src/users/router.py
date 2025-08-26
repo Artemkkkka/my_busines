@@ -1,18 +1,30 @@
-from fastapi import APIRouter
+import contextlib
 
-from sqlalchemy import delete
-from src.auth.users import fastapi_users
+from fastapi import APIRouter
 from src.core.dependencies import CurrentUser, SessionDep
 from src.users.crud import delete_user as delete_user_crud
 
 
+from fastapi import Depends, APIRouter, status
+from fastapi.responses import JSONResponse
+
+from src.auth.manager import UserManager, get_user_manager
+
+
 users_router = APIRouter()
 
-@users_router.delete("/me")
+
+@users_router.delete(
+    "/me",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={404: {"description": "User not found"}},
+)
 async def delete_me(
     user: CurrentUser,
-    session: SessionDep,
+    user_manager: UserManager = Depends(get_user_manager),
 ):
-    await delete_user_crud(session, user.id)
-
-    return {"delete": "yes"}
+    """
+    Удаление текущего пользователя
+    """
+    await user_manager.delete(user)
+    return JSONResponse(status_code=status.HTTP_204_NO_CONTENT, content=None)
