@@ -10,7 +10,6 @@ class UserCreate(BaseModel):
 class UserRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
     email: str
     role_in_team: str
 

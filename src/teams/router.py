@@ -10,6 +10,7 @@ from .crud import (
 )
 from .schemas import TeamCreate, TeamRead, TeamUpdate
 from src.database import db_helper
+from src.core.dependencies import CurrentUser, SessionDep
 
 
 teams_router = APIRouter(
@@ -20,9 +21,10 @@ teams_router = APIRouter(
 @teams_router.post("/", response_model=TeamRead)
 async def create_team(
     payload: TeamCreate,
-    session: AsyncSession = Depends(db_helper.session_getter),
+    session: SessionDep,
+    user: CurrentUser,
 ):
-    team = await crud_create_team(payload, session)
+    team = await crud_create_team(payload, session, user)
 
     return team
 
@@ -30,7 +32,7 @@ async def create_team(
 @teams_router.get("/{team_id}", response_model=TeamRead)
 async def get_team(
     team_id: int,
-    session: AsyncSession = Depends(db_helper.session_getter),
+    session: SessionDep,
 ):
     team = await crud_get_team(team_id, session)
 
@@ -39,7 +41,7 @@ async def get_team(
 
 @teams_router.get("/")
 async def get_all_teams(
-    session: AsyncSession = Depends(db_helper.session_getter)
+    session: SessionDep,
 ) -> list[TeamRead]:
     users = await crud_get_all_teams(session=session)
     return users
@@ -49,7 +51,7 @@ async def get_all_teams(
 async def update_team(
     team_id: int,
     payload: TeamUpdate,
-    session: AsyncSession = Depends(db_helper.session_getter),
+    session: SessionDep,
 ):
     team = await crud_update_team(session, team_id, payload.name)
     return team
@@ -58,7 +60,7 @@ async def update_team(
 @teams_router.delete("/{team_id}")
 async def delete_team(
     team_id: int, 
-    session: AsyncSession = Depends(db_helper.session_getter),
+    session: SessionDep,
 ):
     await crud_delete_team(session, team_id)
 

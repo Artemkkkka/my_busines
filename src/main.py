@@ -32,7 +32,6 @@ app.include_router(
     fastapi_users.get_auth_router(auth_backend),
     prefix="/auth",
     tags=["auth"],
-    dependencies=[Depends(http_bearer)],
 )
 app.include_router(
     fastapi_users.get_register_router(UserRead, UserCreate),
@@ -56,8 +55,6 @@ app.include_router(
     tags=["users"],
     dependencies=[Depends(http_bearer)],
 )
-
-
 
 
 if __name__ == "__main__":
