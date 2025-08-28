@@ -93,7 +93,7 @@ async def list_team_users(
 
 
 @teams_router.delete(
-    "/teams/{team_id}/users",
+    "/{team_id}/users",
     response_model=list[TeamMemberRead],
 )
 async def remove_team_users(

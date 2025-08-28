@@ -5,6 +5,7 @@ from .config import settings
 from src.auth.backend import auth_backend
 from src.auth.users import fastapi_users
 from src.auth.schemas import UserRead, UserUpdate, UserCreate
+from src.tasks.router import tasks_router
 from src.teams.router import teams_router
 from src.users.router import users_router
 from src.users.actions.route_superuser import superuser_router
@@ -16,7 +17,9 @@ app = FastAPI()
 app.include_router(
     teams_router,
 )
-
+app.include_router(
+    tasks_router,
+)
 app.include_router(
     fastapi_users.get_auth_router(auth_backend),
     prefix="/auth",

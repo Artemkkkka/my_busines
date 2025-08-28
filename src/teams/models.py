@@ -13,6 +13,4 @@ class Team(Base, TimestampMixin):
         foreign_keys="Team.owner_id",
     )
     members: Mapped[list["User"]] = relationship(back_populates="team", foreign_keys="User.team_id")
-    task_comments: Mapped[list["TaskComment"]] = relationship(
-        "TaskComment", back_populates="author"
-    )
+    tasks: Mapped[list["Task"]] = relationship(back_populates="team")

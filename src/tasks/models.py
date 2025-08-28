@@ -34,20 +34,28 @@ class Task(Base, TimestampMixin):
     )
 
     author_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="RESTRICT"), nullable=False)
-    assignee_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="SET NULL"))
+    assignee_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
 
     author: Mapped["User"] = relationship(
-        "User",
         foreign_keys=[author_id],
         back_populates="authored_tasks",
         lazy="joined",
     )
     assignee: Mapped["User"] = relationship(
-        "User",
         foreign_keys=[assignee_id],
         back_populates="assigned_tasks",
         lazy="joined",
     )
 
-    team_id: Mapped[int] = mapped_column(ForeignKey("team.id", ondelete="SET NULL"))
-    team: Mapped["Team"] = relationship("Team", back_populates="tasks")
+    team_id: Mapped[int] = mapped_column(ForeignKey("team.id", ondelete="CASCADE"))
+    team: Mapped["Team"] = relationship(back_populates="tasks")
+
+
+class TaskComment(Base, TimestampMixin,):
+    task_id: Mapped[int] = mapped_column(ForeignKey("task.id", ondelete="CASCADE"), nullable=False)
+    author_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="RESTRICT"), nullable=False)
+
+    task: Mapped["Task"] = relationship(back_populates="comments")
+    author: Mapped["User"] = relationship(back_populates="task_comments")
+
+    body: Mapped[str] = mapped_column(Text, nullable=False)
