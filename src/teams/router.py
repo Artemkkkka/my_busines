@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from .crud import (
     create_team as crud_create_team,
@@ -13,8 +12,7 @@ from .crud import (
 )
 from .schemas import TeamCreate, TeamRead, TeamUpdate, TeamMemberRead, TeamMembersDelete
 from.permissions import require_team_admin_or_superuser
-from src.database import db_helper
-from src.core.dependencies import CurrentUser, SessionDep
+from src.core.dependencies import SessionDep
 from src.users.models import User
 
 

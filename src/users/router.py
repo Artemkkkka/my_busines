@@ -1,13 +1,7 @@
-import contextlib
-
-from fastapi import APIRouter
-from src.core.dependencies import CurrentUser, SessionDep
-from src.users.crud import delete_user as delete_user_crud
-
-
 from fastapi import Depends, APIRouter, status
 from fastapi.responses import JSONResponse
 
+from src.core.dependencies import CurrentUser
 from src.auth.manager import UserManager, get_user_manager
 
 
