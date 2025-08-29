@@ -128,19 +128,43 @@ async def create_task_comment(
     author_id: int,
     body: str,
 ) -> TaskComment:
-    # Убедимся, что задача существует и принадлежит команде
     task = await session.scalar(
         select(Task).where(Task.id == task_id, Task.team_id == team_id)
     )
     if task is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
 
-    # Создаём комментарий
     comment = TaskComment(task_id=task.id, author_id=author_id, body=body)
     session.add(comment)
 
     await session.flush()
     await session.commit()
-    # Обновим поля с server_default (created_at/updated_at)
     await session.refresh(comment)
     return comment
+
+
+async def rate_task(
+    session: AsyncSession,
+    team_id: int,
+    task_id: int,
+    actor_id: int,
+    rating: int,
+) -> Task:
+    task = await session.scalar(
+        select(Task).where(Task.id == task_id, Task.team_id == team_id)
+    )
+    if task is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+
+    if task.status != Status.done:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Task must be done to be rated")
+
+    if not (1 <= rating <= 5):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Rating must be between 1 and 5")
+
+    task.rating = rating
+    await session.flush()
+    await session.commit()
+    # чтобы вернуть актуальные поля без ленивых обращений
+    await session.refresh(task)
+    return task

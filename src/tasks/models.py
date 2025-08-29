@@ -27,6 +27,7 @@ class Task(Base, TimestampMixin):
     status: Mapped[Status] = mapped_column(
         Enum(Status), nullable=False, default=Status.open
     )
+    rating: Mapped[int] = mapped_column(nullable=True)
     comments: Mapped[list["TaskComment"]] = relationship(
         back_populates="task",
         cascade="all, delete-orphan",

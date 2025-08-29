@@ -1,10 +1,16 @@
 from fastapi import APIRouter, Depends, Response, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-from .permissions import forbid_employee
-from .schemas import TaskCommentCreate, TaskCommentRead
+from .permissions import forbid_employee, require_team_admin_or_superuser
+from .schemas import (
+    TaskCommentCreate,
+    TaskCommentRead,
+    TaskCreate,
+    TaskRead,
+    TaskUpdate,
+    TaskRate
+)
 from src.core.dependencies import CurrentUser, SessionDep
-from src.tasks.schemas import TaskCreate, TaskRead, TaskUpdate
 from src.tasks.crud import (
     create_task as crud_create_task,
     get_task as crud_get_task,
@@ -12,6 +18,7 @@ from src.tasks.crud import (
     update_task as crud_update_task,
     delete_task as crud_delete_task,
     create_task_comment as crud_create_task_comment,
+    rate_task as crud_rate_task,
 )
 from src.users.models import User
 
@@ -112,3 +119,20 @@ async def add_comment(
         body=payload.body,
     )
     return comment
+
+
+@tasks_router.post("/{task_id}/rate", response_model=TaskRead, status_code=status.HTTP_200_OK)
+async def rate_task(
+    team_id: int,
+    task_id: int,
+    payload: TaskRate,
+    session: SessionDep,
+    user: User = Depends(require_team_admin_or_superuser),
+):
+    return await crud_rate_task(
+        session,
+        team_id=team_id,
+        task_id=task_id,
+        actor_id=user.id,
+        rating=payload.rating,
+    )

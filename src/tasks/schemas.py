@@ -19,6 +19,7 @@ class TaskRead(BaseModel):
     description: Optional[str]
     deadline_at: Optional[datetime]
     status: Status
+    rating: int | None = None
     author_id: int
     assignee_id: Optional[int]
     created_at: datetime
@@ -46,3 +47,7 @@ class TaskCommentRead(BaseModel):
     body: str
     created_at: datetime
     updated_at: datetime
+
+
+class TaskRate(BaseModel):
+    rating: int = Field(ge=1, le=5)

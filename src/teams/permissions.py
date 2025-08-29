@@ -1,5 +1,3 @@
-from fastapi import Depends
-
 from src.teams.service import ensure_can_create_team
 from src.core.dependencies import CurrentUser
 
