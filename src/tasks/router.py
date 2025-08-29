@@ -2,14 +2,16 @@ from fastapi import APIRouter, Depends, Response, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from .permissions import forbid_employee
+from .schemas import TaskCommentCreate, TaskCommentRead
 from src.core.dependencies import CurrentUser, SessionDep
-from src.tasks.schemas import TaskCreate, TaskRead,TaskUpdate
+from src.tasks.schemas import TaskCreate, TaskRead, TaskUpdate
 from src.tasks.crud import (
     create_task as crud_create_task,
     get_task as crud_get_task,
     get_all_tasks as crud_get_all_tasks,
     update_task as crud_update_task,
     delete_task as crud_delete_task,
+    create_task_comment as crud_create_task_comment,
 )
 from src.users.models import User
 
@@ -92,3 +94,21 @@ async def delete_task(
 ):
     await crud_delete_task(session, team_id=team_id, task_id=task_id, user=user)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@tasks_router.post("/{task_id}", response_model=TaskCommentRead, status_code=status.HTTP_201_CREATED)
+async def add_comment(
+    team_id: int,
+    task_id: int,
+    payload: TaskCommentCreate,
+    session: SessionDep,
+    user: CurrentUser,
+):
+    comment = await crud_create_task_comment(
+        session,
+        team_id=team_id,
+        task_id=task_id,
+        author_id=user.id,
+        body=payload.body,
+    )
+    return comment

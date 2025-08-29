@@ -31,3 +31,18 @@ class TaskUpdate(BaseModel):
     deadline_at: Optional[datetime] = None
     assignee_id: Optional[int] = None
     status: Optional[Status] = None
+
+
+class TaskCommentCreate(BaseModel):
+    body: str
+
+
+class TaskCommentRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    task_id: int
+    author_id: int
+    body: str
+    created_at: datetime
+    updated_at: datetime

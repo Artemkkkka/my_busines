@@ -5,7 +5,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .models import Status, Task
+from .models import Status, Task, TaskComment
 from src.users.models import User
 from src.teams.models import Team
 
@@ -119,3 +119,28 @@ async def delete_task(
 
     await session.delete(task)
     await session.commit()
+
+
+async def create_task_comment(
+    session: AsyncSession,
+    team_id: int,
+    task_id: int,
+    author_id: int,
+    body: str,
+) -> TaskComment:
+    # Убедимся, что задача существует и принадлежит команде
+    task = await session.scalar(
+        select(Task).where(Task.id == task_id, Task.team_id == team_id)
+    )
+    if task is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+
+    # Создаём комментарий
+    comment = TaskComment(task_id=task.id, author_id=author_id, body=body)
+    session.add(comment)
+
+    await session.flush()
+    await session.commit()
+    # Обновим поля с server_default (created_at/updated_at)
+    await session.refresh(comment)
+    return comment
