@@ -1,8 +1,8 @@
 from typing import Optional, Any, Mapping
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .models import Status, Task, TaskComment
@@ -163,8 +163,60 @@ async def rate_task(
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Rating must be between 1 and 5")
 
     task.rating = rating
+    task.rated_at = datetime.now(timezone.utc).replace(second=0, microsecond=0)
     await session.flush()
     await session.commit()
-    # чтобы вернуть актуальные поля без ленивых обращений
     await session.refresh(task)
     return task
+
+
+async def get_avg_rating_for_period(
+    session: AsyncSession,
+    team_id: int,
+    date_from: datetime,
+    date_to: datetime,
+    user: User,
+) -> tuple[float | None, int]:
+    if date_from > date_to:
+        raise HTTPException(status_code=422, detail="'date_from' must be <= 'date_to'")
+
+    res = await session.execute(
+        select(func.avg(Task.rating), func.count())
+        .where(
+            Task.assignee_id == user.id,
+            Task.team_id == team_id,
+            Task.status == Status.done,
+            Task.rating.isnot(None),
+            Task.rated_at.isnot(None),
+            Task.rated_at >= date_from,
+            Task.rated_at <= date_to,
+        )
+    )
+    avg_val, cnt = res.one_or_none() or (None, 0)
+    return (float(avg_val) if avg_val is not None else None, int(cnt or 0))
+
+
+async def list_user_ratings(
+    session: AsyncSession,
+    team_id: int,
+    user: User,
+):
+    stmt = (
+        select(Task)
+        .where(
+            Task.team_id == team_id,
+            Task.assignee_id == user.id,
+            Task.status == Status.done,
+            Task.rating.isnot(None),
+        )
+        .order_by(Task.rated_at.desc().nullslast(), Task.id.desc())
+    )
+    tasks = list((await session.scalars(stmt)).all())
+
+    if tasks:
+        count = len(tasks)
+        avg = sum(t.rating for t in tasks if t.rating is not None) / count
+    else:
+        count, avg = 0, None
+
+    return tasks, avg, count

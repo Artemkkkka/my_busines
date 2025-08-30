@@ -1,6 +1,5 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import HTTPException, status
 
-from src.auth.users import current_user
 from src.core.dependencies import CurrentUser
 from src.users.models import User, TeamRole
 

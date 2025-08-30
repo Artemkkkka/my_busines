@@ -27,7 +27,6 @@ class Task(Base, TimestampMixin):
     status: Mapped[Status] = mapped_column(
         Enum(Status), nullable=False, default=Status.open
     )
-    rating: Mapped[int] = mapped_column(nullable=True)
     comments: Mapped[list["TaskComment"]] = relationship(
         back_populates="task",
         cascade="all, delete-orphan",
@@ -46,6 +45,10 @@ class Task(Base, TimestampMixin):
         foreign_keys=[assignee_id],
         back_populates="assigned_tasks",
         lazy="joined",
+    )
+    rating_obj: Mapped["Evaluation | None"] = relationship(
+        back_populates="task",
+        cascade="all, delete-orphan",
     )
 
     team_id: Mapped[int] = mapped_column(ForeignKey("team.id", ondelete="CASCADE"))
