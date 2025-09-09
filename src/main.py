@@ -9,6 +9,7 @@ from src.evaluations.router import evaluation_router
 from src.tasks.router import tasks_router
 from src.teams.router import teams_router
 from src.users.router import users_router
+from src.meetings.router import meetings_router
 from src.users.actions.route_superuser import superuser_router
 
 
@@ -23,6 +24,9 @@ app.include_router(
 )
 app.include_router(
     evaluation_router,
+)
+app.include_router(
+    meetings_router,
 )
 app.include_router(
     fastapi_users.get_auth_router(auth_backend),
