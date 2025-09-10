@@ -5,8 +5,10 @@ from enum import StrEnum
 
 from sqlalchemy import (
     ForeignKey, String, Text, Integer, DateTime, Enum, Index,
-    Table, Column
+    Table, Column,
+    func,
 )
+from sqlalchemy.dialects.postgresql import ExcludeConstraint
 from sqlalchemy.orm import (
     Mapped, mapped_column, relationship, backref
 )
@@ -57,6 +59,11 @@ class Meeting(Base, TimestampMixin):
     )
 
     __table_args__ = (
-        Index("ix_meeting_team_status", "team_id", "status"),
-        Index("ix_meeting_time_window", "starts_at", "ends_at"),
+        ExcludeConstraint(
+            ('team_id', '='),
+            (func.tstzrange(starts_at, ends_at, '[)'), '&&'),
+            name='excl_meeting_team_time',
+            using='gist',
+            where=(status == MeetingStatus.scheduled),  # не мешаем canceled
+        ),
     )

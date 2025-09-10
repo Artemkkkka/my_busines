@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select, and_
 
 from src.core.dependencies import CurrentUser, SessionDep
+from src.meetings.checks.check_time import ensure_no_overlap
 from src.meetings.models import Meeting
 from src.meetings.crud import (
     create_meeting as crud_create_meeting,
@@ -35,12 +36,19 @@ async def create_meeting(
     current_user: CurrentUser,
 ):
     await _validate_times(payload.starts_at, payload.ends_at)
+
+    await ensure_no_overlap(
+        session,
+        team_id=current_user.team_id,
+        starts_at=payload.starts_at,
+        ends_at=payload.ends_at,
+    )
+
     meeting = await crud_create_meeting(
         user=current_user,
         payload=payload,
         session=session,
     )
-
     return meeting
 
 

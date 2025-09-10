@@ -15,8 +15,9 @@ team_id проставляется в соответствии с team_id пол
 '''
 from datetime import datetime
 
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 from sqlalchemy import select, and_, exists
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from src.users.models import User
