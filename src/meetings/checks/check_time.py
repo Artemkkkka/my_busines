@@ -14,7 +14,6 @@ async def ensure_no_overlap(
     exclude_meeting_id: int | None = None,
 ) -> None:
     conds = [
-        # правило пересечения: [start, end) — касание по границе разрешено
         Meeting.ends_at > starts_at,
         Meeting.starts_at < ends_at,
         Meeting.team_id == team_id,

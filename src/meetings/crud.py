@@ -81,13 +81,10 @@ async def get_user_meetings(
     if not include_canceled:
         base_filters.append(Meeting.status == MeetingStatus.scheduled)
 
-    # Временное окно — аккуратно по двум столбцам
     if starts_after is not None:
         base_filters.append(Meeting.ends_at >= starts_after)
     if ends_before is not None:
         base_filters.append(Meeting.starts_at <= ends_before)
-
-    # База запроса
     stmt = (
         select(Meeting)
         .where(and_(*base_filters))
@@ -99,7 +96,6 @@ async def get_user_meetings(
         stmt = stmt.limit(limit)
 
     result = await session.scalars(stmt)
-    # Из-за join возможны дубликаты: unique() убирает их на уровне ORM
     return result.unique().all()
 
 

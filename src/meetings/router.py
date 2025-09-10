@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select, and_
 
 from src.core.dependencies import CurrentUser, SessionDep
+from src.evaluations.permissions import forbid_employee, require_team_admin_or_superuser
+from src.users.models import User
 from src.meetings.checks.check_time import ensure_no_overlap
 from src.meetings.models import Meeting
 from src.meetings.crud import (
@@ -33,7 +35,7 @@ async def _validate_times(starts_at: Optional[datetime], ends_at: Optional[datet
 async def create_meeting(
     payload: MeetingCreate,
     session: SessionDep,
-    current_user: CurrentUser,
+    current_user: User = Depends(forbid_employee),
 ):
     await _validate_times(payload.starts_at, payload.ends_at)
 
@@ -52,11 +54,10 @@ async def create_meeting(
     return meeting
 
 
-# 2) Получение встреч по дате (team_id = team пользователя)
 @meetings_router.get("/by-date", response_model=List[MeetingOut])
 async def get_meetings_by_date(
     session: SessionDep,
-    current_user: CurrentUser,
+    current_user: User = Depends(forbid_employee),
     date: datetime = Query(..., alias="moment", description="ГГГГ-ММ-ДДTчч:мм:сс"),
 ):
     list_meeting = await crud_get_meetings_by_date(
@@ -68,7 +69,6 @@ async def get_meetings_by_date(
     return list_meeting
 
 
-# 3) Получение всех встреч пользователя (созданных им) в его команде
 @meetings_router.get("/my", response_model=List[MeetingOut])
 async def get_user_meetings(
     session: SessionDep,
@@ -82,11 +82,10 @@ async def get_user_meetings(
     return list_meetings
 
 
-# 4) Получение всех встреч команды пользователя
 @meetings_router.get("/team", response_model=List[MeetingOut])
 async def get_team_meetings(
     session: SessionDep,
-    current_user: CurrentUser,
+    current_user: User = Depends(forbid_employee),
 ):
     meetings = await crud_get_team_meetings(
         session=session,
@@ -100,7 +99,7 @@ async def get_team_meetings(
 async def get_meeting(
     meeting_id: int,
     session: SessionDep,
-    current_user: CurrentUser,
+    current_user: User = Depends(require_team_admin_or_superuser),
 ):
     return await crud_get_meeting(
         meeting_id=meeting_id,
@@ -108,13 +107,12 @@ async def get_meeting(
     )
 
 
-# 5) Обновление встречи (частичное). Если ends_at передан — status="canceled".
 @meetings_router.patch("/{meeting_id}", response_model=MeetingOut)
 async def update_meeting(
     meeting_id: int,
     payload: MeetingUpdate,
     session: SessionDep,
-    current_user: CurrentUser,
+    current_user: User = Depends(forbid_employee),
 ):
     await _validate_times(payload.starts_at, payload.ends_at)
 
@@ -126,12 +124,11 @@ async def update_meeting(
     return obj
 
 
-# 6) Удаление встречи в пределах команды пользователя
 @meetings_router.delete("/{meeting_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_meeting(
     meeting_id: int,
     session: SessionDep,
-    current_user: CurrentUser,
+    current_user: User = Depends(forbid_employee),
 ):
     return await crud_delete_meeting(
         meeting_id=meeting_id,
