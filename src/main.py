@@ -1,6 +1,13 @@
 from fastapi import FastAPI
 import uvicorn
 
+from src.models.admin import UserAdmin
+from src.models.admin import EvaluationAdmin
+from src.models.admin import MeetingAdmin
+from src.models.admin import TaskAdmin
+from src.models.admin import TaskCommentAdmin
+from src.models.admin import TeamAdmin
+
 from .config import settings
 from src.auth.backend import auth_backend
 from src.auth.users import fastapi_users
@@ -11,6 +18,9 @@ from src.teams.router import teams_router
 from src.users.router import users_router
 from src.meetings.router import meetings_router
 from src.users.actions.route_superuser import superuser_router
+
+from sqladmin import Admin, ModelView
+from src.database import db_helper
 
 
 app = FastAPI()
@@ -59,6 +69,14 @@ app.include_router(
     superuser_router,
 )
 
+admin = Admin(app, db_helper.engine)
+
+admin.add_view(UserAdmin)
+admin.add_view(EvaluationAdmin)
+admin.add_view(TaskAdmin)
+admin.add_view(TaskCommentAdmin)
+admin.add_view(MeetingAdmin)
+admin.add_view(TeamAdmin)
 
 if __name__ == "__main__":
     uvicorn.run(

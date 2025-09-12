@@ -9,7 +9,7 @@ from sqlalchemy import Integer, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models import Base
+from src.models.base import Base
 from src.database import db_helper
 
 

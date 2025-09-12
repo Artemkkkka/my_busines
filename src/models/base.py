@@ -6,7 +6,7 @@ from sqlalchemy.orm import (
     mapped_column,
 )
 
-from .config import settings
+from ..config import settings
 
 
 class Base(DeclarativeBase):
@@ -17,3 +17,5 @@ class Base(DeclarativeBase):
         return cls.__name__.lower()
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+

@@ -4,7 +4,7 @@ from fastapi_users_db_sqlalchemy  import SQLAlchemyBaseUserTable
 from sqlalchemy import Enum, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.models import Base
+from src.models.base import Base
 from src.mixins.timestamp_mixin import TimestampMixin
 
 

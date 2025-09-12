@@ -2,7 +2,7 @@ from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.mixins.timestamp_mixin import TimestampMixin
-from src.models import Base
+from src.models.base import Base
 
 
 class Team(Base, TimestampMixin):

@@ -13,7 +13,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 
 from src.config import settings
-from src.models import Base
+from src.models.base import Base
 
 
 config = context.config

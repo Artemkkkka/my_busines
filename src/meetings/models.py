@@ -14,7 +14,7 @@ from sqlalchemy.orm import (
 )
 
 
-from src.models import Base
+from src.models.base import Base
 from src.mixins.timestamp_mixin import TimestampMixin
 from src.teams.models import Team
 from src.users.models import User

@@ -4,7 +4,7 @@ from datetime import datetime
 from sqlalchemy import SmallInteger, ForeignKey, DateTime, CheckConstraint, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.models import Base
+from src.models.base import Base
 
 
 class Evaluation(Base):
