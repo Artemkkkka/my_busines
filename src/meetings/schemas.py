@@ -1,4 +1,5 @@
 from datetime import datetime, date
+from typing import Optional
 from pydantic import BaseModel, ConfigDict
 
 
@@ -18,10 +19,10 @@ class MeetingUpdate(BaseModel):
 
 class MeetingOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    
+
     team_id: int
     title: str
-    description: str
+    description: Optional[str] = None
     starts_at: datetime
     ends_at: datetime
     status: str

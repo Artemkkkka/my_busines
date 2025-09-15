@@ -12,6 +12,7 @@ class UserRead(BaseModel):
 
     email: str
     role_in_team: str
+    team_id: Optional[int] = None
 
 
 class UserUpdate(UserCreate):

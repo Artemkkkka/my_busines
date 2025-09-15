@@ -1,4 +1,6 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 import uvicorn
 
 from src.models.admin import UserAdmin
@@ -19,11 +21,29 @@ from src.users.router import users_router
 from src.meetings.router import meetings_router
 from src.users.actions.route_superuser import superuser_router
 
-from sqladmin import Admin, ModelView
+from sqladmin import Admin
 from src.database import db_helper
 
 
 app = FastAPI()
+
+templates = Jinja2Templates(directory="templates")
+
+
+@app.get("/", response_class=HTMLResponse)
+def index(request: Request):
+    return templates.TemplateResponse(
+        "index.html",
+        {"request": request}
+    )
+
+
+@app.get("/calendar", response_class=HTMLResponse)
+def calendar(request: Request):
+    return templates.TemplateResponse(
+        "calendar.html",
+        {"request": request}
+    )
 
 
 app.include_router(
@@ -61,9 +81,8 @@ app.include_router(
 )
 app.include_router(
     users_router,
-    prefix="/users",
+    prefix="/my-users",
     tags=["users"],
-
 )
 app.include_router(
     superuser_router,

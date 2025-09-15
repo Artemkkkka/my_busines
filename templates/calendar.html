@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Календарь: месяц/день + задачи и встречи (HTML)</title>
+  <style>
+    :root{ --bg:#fff; --ink:#111; --muted:#6b7280; --line:#e5e7eb; --chip:#f3f4f6; --accent:#111; --accent-ink:#fff; --bad:#b00020; }
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+    .container{max-width:1100px;margin:0 auto;padding:16px}
+    h1{margin:0;font-size:22px}
+    .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+    .btn{border:1px solid var(--line);background:#fff;padding:6px 10px;border-radius:999px;cursor:pointer}
+    .btn.primary{background:var(--accent);color:var(--accent-ink)}
+    .btn.ghost{background:transparent}
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .spacer{flex:1}
+    .card{border:1px solid var(--line);border-radius:14px;padding:12px;background:#fff}
+    .muted{color:var(--muted)}
+    .error{background:#ffe8ec;border:1px solid #ffd1d9;color:#7a0017;padding:8px 10px;border-radius:10px}
+
+    /* таблицы */
+    table{width:100%;border-collapse:collapse}
+    th,td{border:1px solid var(--line);padding:8px;text-align:left;vertical-align:top}
+    thead th{background:#fafafa}
+    .cell-dim{background:#fafafa;color:#9ca3af}
+    .cell-head{display:flex;justify-content:space-between;align-items:center;font-weight:600}
+    .pill{display:inline-block;background:var(--chip);padding:2px 6px;border-radius:8px;font-size:12px}
+    .list{margin-top:6px;display:flex;flex-direction:column;gap:2px}
+    .truncate{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+    /* формы */
+    .grid{display:grid;gap:8px}
+    .grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+    @media (max-width: 640px){.grid-2{grid-template-columns:1fr}}
+    label{font-size:12px;color:#374151}
+    input,textarea{width:100%;box-sizing:border-box;padding:8px;border:1px solid var(--line);border-radius:10px;font:inherit}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="toolbar">
+      <h1>Календарь</h1>
+      <span class="muted">месячный/дневной вид и быстрое добавление</span>
+      <div class="spacer"></div>
+      <button id="btnMonth" class="btn">Месяц</button>
+      <button id="btnDay" class="btn">День</button>
+    </div>
+
+    <!-- Навигация по датам + выход -->
+    <div class="row" style="margin:8px 0 12px">
+      <button id="prevDay" class="btn" title="Предыдущий день">←</button>
+      <div id="currentDate" style="font-weight:600"></div>
+      <button id="nextDay" class="btn" title="Следующий день">→</button>
+      <button id="today" class="btn">Сегодня</button>
+      <div class="spacer"></div>
+      <button id="logout" class="btn ghost" title="Выйти">Выйти</button>
+      <div id="status" class="muted"></div>
+    </div>
+
+    <div id="err" class="error" style="display:none"></div>
+
+    <!-- Логин -->
+    <div id="loginCard" class="card" style="margin-bottom:12px; display:none">
+      <div style="font-weight:600; margin-bottom:8px">Вход</div>
+      <div class="grid">
+        <div class="grid grid-2">
+          <div>
+            <label>Email</label>
+            <input id="loginEmail" placeholder="you@example.com" />
+          </div>
+          <div>
+            <label>Пароль</label>
+            <input id="loginPassword" type="password" placeholder="••••••••" />
+          </div>
+        </div>
+        <div class="row">
+          <button id="btnLogin" class="btn primary">Войти</button>
+          <span class="muted">или вставьте готовый токен ниже</span>
+        </div>
+        <div class="grid grid-2">
+          <div>
+            <label>Готовый токен (если есть)</label>
+            <input id="tokenInput" placeholder="Bearer токен" />
+          </div>
+          <div>
+            <label>Team ID (если токен/профиль не вернёт его сам)</label>
+            <input id="teamIdInput" placeholder="например, 9" />
+          </div>
+        </div>
+        <div>
+          <button id="btnUseToken" class="btn">Использовать этот токен</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Быстрые формы -->
+    <div class="row" style="margin-bottom:12px">
+      <div class="card" style="flex:1; min-width:280px">
+        <div style="font-weight:600; margin-bottom:8px">Быстро добавить задачу (на выбранную дату)</div>
+        <div class="grid">
+          <div>
+            <label>Название</label>
+            <input id="taskName" placeholder="Например: Отправить отчёт" />
+          </div>
+          <div>
+            <label>Описание (необязательно)</label>
+            <input id="taskDesc" placeholder="Коротко опиши" />
+          </div>
+          <div>
+            <button id="addTask" class="btn primary">Добавить задачу</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="flex:1; min-width:280px">
+        <div style="font-weight:600; margin-bottom:8px">Быстро добавить встречу</div>
+        <div class="grid">
+          <div>
+            <label>Заголовок</label>
+            <input id="meetTitle" placeholder="Например: Статус с командой" />
+          </div>
+          <div class="grid grid-2">
+            <div>
+              <label>Начало (дата)</label>
+              <input id="meetStartDate" type="date" />
+            </div>
+            <div>
+              <label>Начало (время)</label>
+              <input id="meetStartTime" type="time" />
+            </div>
+          </div>
+          <div class="grid grid-2">
+            <div>
+              <label>Конец (дата)</label>
+              <input id="meetEndDate" type="date" />
+            </div>
+            <div>
+              <label>Конец (время)</label>
+              <input id="meetEndTime" type="time" />
+            </div>
+          </div>
+          <div>
+            <button id="addMeeting" class="btn primary">Добавить встречу</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Представления -->
+    <div id="monthView" class="card" style="display:block"></div>
+    <div id="dayView" class="card" style="display:none"></div>
+  </div>
+
+  <script>
+    /***********************
+     * Настройки (под себя)
+     ***********************/
+    const CONFIG = {
+      baseUrl: "http://127.0.0.1:8000",
+      loginEndpoint: "/auth/login", // POST {email,password} -> { token }
+      meEndpoint: "/my-users/me-team",       // GET -> { team_id, ... }
+      tokenStorageKey: "calendar_token",
+      teamIdStorageKey: "calendar_team_id"
+    };
+
+    /*********************** Утилиты ***********************/
+    const $ = (s) => document.querySelector(s);
+    const pad = (n) => String(n).padStart(2, '0');
+    function toYMD(d){ return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`; }
+    function ymdToDate(ymd){ const [y,m,dd]=ymd.split('-').map(Number); return new Date(Date.UTC(y,m-1,dd)); }
+    function startOfMonth(d){ return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)); }
+    function addDays(d,n){ const x=new Date(d); x.setUTCDate(x.getUTCDate()+n); return x; }
+    function mkISO(dateYMD, timeHM){ const hh=timeHM?.slice(0,2)||'00', mm=timeHM?.slice(3,5)||'00'; return `${dateYMD}T${hh}:${mm}:00`; }
+    function formatHuman(d){ return new Intl.DateTimeFormat('ru-RU',{year:'numeric',month:'long',day:'2-digit'}).format(d); }
+    function escapeHtml(str){ return String(str).replace(/[&<>"']/g, s=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[s])); }
+
+    /*********************** API ***********************/
+    function authHeaders(){ const t=state.authToken||localStorage.getItem(CONFIG.tokenStorageKey)||""; const h={'Content-Type':'application/json'}; if(t) h['Authorization']=`Bearer ${t}`; return h; }
+    function urlTasksList(){ return `${CONFIG.baseUrl}/teams/${state.teamId}/tasks`; }
+    function urlTasksPost(){ return `${CONFIG.baseUrl}/teams/${state.teamId}/tasks/`; }
+    function urlMeetingsTeam(){ return `${CONFIG.baseUrl}/meetings/team`; }
+    function urlMeetingsPost(){ return `${CONFIG.baseUrl}/meetings`; }
+
+    async function apiGet(url){ const r=await fetch(url,{headers:authHeaders()}); if(!r.ok) throw new Error(`GET ${url} → ${r.status}`); return r.json(); }
+    async function apiPost(url, body){ const r=await fetch(url,{method:'POST',headers:authHeaders(),body:JSON.stringify(body)}); if(!r.ok){const t=await r.text(); throw new Error(`POST ${url} → ${r.status}: ${t}`);} return r.json(); }
+
+    /*********************** Состояние ***********************/
+    const state = {
+      view:'month',
+      selectedDate:(()=>{const n=new Date();return new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),n.getUTCDate()));})(),
+      tasks:[], meetings:[], authToken:null, teamId:null
+    };
+
+    /*********************** Загрузка ***********************/
+    async function loadAll(){
+      if(!state.authToken || !state.teamId){ renderAuthNeeded(); return; }
+      setStatus('Загрузка…'); hideError();
+      try{
+        const [tasks, meetings] = await Promise.all([
+          apiGet(urlTasksList()),
+          apiGet(urlMeetingsTeam())
+        ]);
+        state.tasks = tasks || []; state.meetings = meetings || [];
+        setStatus(`Загружено: задач ${state.tasks.length}, встреч ${state.meetings.length}`);
+      }catch(e){ showError(String(e.message||e)); setStatus('Ошибка загрузки'); }
+      renderViews();
+    }
+
+    /*********************** Рендер: месяц/день ***********************/
+    function buildMonthMatrix(current){
+      const first = startOfMonth(current);
+      const firstWeekday = (first.getUTCDay()+6)%7; // пн=0
+      const firstCell = addDays(first, -firstWeekday);
+      const rows=[]; for(let w=0;w<6;w++){ const row=[]; for(let d=0;d<7;d++) row.push(addDays(firstCell,w*7+d)); rows.push(row);} return rows;
+    }
+    function renderMonth(){
+      const cont = $('#monthView'); const m = state.selectedDate.getUTCMonth(); const rows = buildMonthMatrix(state.selectedDate);
+      const weekHdr = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(h=>`<th>${h}</th>`).join('');
+      let html = `<table><thead><tr>${weekHdr}</tr></thead><tbody>`;
+      for(const row of rows){ html += '<tr>'; for(const date of row){ const ymd=toYMD(date); const dim = (date.getUTCMonth()!==m)?'cell-dim':''; const dayTasks=state.tasks.filter(t=>(t.deadline_at||'').startsWith(ymd)); const dayMeets=state.meetings.filter(mm=>(mm.starts_at||'').startsWith(ymd)||(mm.ends_at||'').startsWith(ymd)); const count=dayTasks.length+dayMeets.length; const items=[...dayTasks.slice(0,3).map(t=>`<div class="truncate">🗒️ ${escapeHtml(t.name||'')}</div>`), ...dayMeets.slice(0,3).map(mm=>`<div class="truncate">📅 ${escapeHtml(mm.title||'')}</div>`)].join(''); const more=count>3?`<div class="muted" style="font-size:12px">ещё ${count-3}…</div>`:''; html += `<td class="${dim}" data-ymd="${ymd}"><div class="cell-head"><span>${date.getUTCDate()}</span><span class="pill">${count}</span></div><div class="list">${items}${more}</div></td>`; } html += '</tr>'; }
+      html += '</tbody></table>';
+      cont.innerHTML = html;
+      cont.querySelectorAll('td[data-ymd]').forEach(td=> td.addEventListener('click',()=>{ state.selectedDate = ymdToDate(td.getAttribute('data-ymd')); setView('day'); renderViews(); }));
+    }
+    function renderDay(){
+      const cont=$('#dayView'); const ymd=toYMD(state.selectedDate);
+      const meetings = state.meetings.filter(m=>(m.starts_at||'').startsWith(ymd)||(m.ends_at||'').startsWith(ymd)).sort((a,b)=>String(a.starts_at).localeCompare(String(b.starts_at)));
+      const tasks = state.tasks.filter(t=>(t.deadline_at||'').startsWith(ymd));
+      let html = `<table><thead><tr><th style="width:120px">Дата</th><th>Тип</th><th style="width:160px">Время / Дедлайн</th><th>Название</th><th>Описание</th></tr></thead><tbody>`;
+      for(const m of meetings){ html += `<tr><td>${ymd}</td><td>Встреча</td><td>${(m.starts_at||'').slice(11,16)}–${(m.ends_at||'').slice(11,16)}</td><td><b>${escapeHtml(m.title||'')}</b></td><td class="muted">${escapeHtml(m.description||'—')}</td></tr>`; }
+      for(const t of tasks){ html += `<tr><td>${ymd}</td><td>Задача</td><td>дедлайн ${((t.deadline_at||'').slice(11,16))||'—'}</td><td><b>${escapeHtml(t.name||'')}</b></td><td class="muted">${escapeHtml(t.description||'—')}</td></tr>`; }
+      if(meetings.length===0 && tasks.length===0){ html += `<tr><td colspan="5" class="muted" style="text-align:center; padding:18px">На этот день ничего нет</td></tr>`; }
+      html += '</tbody></table>';
+      cont.innerHTML = html;
+    }
+
+    function renderViews(){ $('#currentDate').textContent = formatHuman(state.selectedDate); if(state.view==='month') { $('#monthView').style.display='block'; $('#dayView').style.display='none'; renderMonth(); } else { $('#monthView').style.display='none'; $('#dayView').style.display='block'; renderDay(); } }
+
+    /*********************** Аутентификация ***********************/
+    function setStatus(t){ $('#status').textContent=t||''; }
+    function showError(t){ const el=$('#err'); el.textContent=t; el.style.display='block'; }
+    function hideError(){ $('#err').style.display='none'; }
+    function renderAuthNeeded(){ $('#loginCard').style.display='block'; $('#monthView').style.display='none'; $('#dayView').style.display='none'; }
+
+    async function doLogin(){
+      hideError();
+      const email=$('#loginEmail').value.trim(); const password=$('#loginPassword').value.trim();
+      if(!email||!password){ showError('Введите email и пароль или вставьте токен ниже'); return; }
+      try{
+        const url = CONFIG.baseUrl + CONFIG.loginEndpoint;
+        // Сервер ожидает OAuth2PasswordRequestForm: application/x-www-form-urlencoded с полями username, password
+        const body = new URLSearchParams({ username: email, password });
+        const res = await fetch(url, { method:'POST', headers:{ 'Content-Type':'application/x-www-form-urlencoded' }, body });
+        if(!res.ok){ const t=await res.text(); throw new Error(`Вход не удался: ${res.status} ${t}`); }
+        const data = await res.json();
+        const token = data.token || data.access_token || data.accessToken;
+        if(!token) throw new Error('Сервер не вернул токен');
+        await setAuthAndMaybeTeam(token, data.team_id || data.teamId);
+      }catch(e){ showError(String(e.message||e)); }
+    }
+
+    async function setAuthAndMaybeTeam(token, teamId){
+      state.authToken = token; localStorage.setItem(CONFIG.tokenStorageKey, token);
+      // Попробуем достать team_id из профиля
+      if(!teamId){
+        try{ const me = await apiGet(CONFIG.baseUrl + CONFIG.meEndpoint); teamId = me.team_id || me.teamId; } catch{ /* игнор */ }
+      }
+      if(!teamId){ const manual=$('#teamIdInput').value.trim(); if(manual) teamId=Number(manual); }
+      if(!teamId){ showError('Не удалось определить team_id. Укажите его в поле Team ID.'); return; }
+      state.teamId = Number(teamId); localStorage.setItem(CONFIG.teamIdStorageKey, String(state.teamId));
+      $('#loginCard').style.display='none';
+      await loadAll();
+    }
+
+    function useProvidedToken(){ hideError(); const t=$('#tokenInput').value.trim(); if(!t){ showError('Вставьте токен'); return; } setAuthAndMaybeTeam(t, $('#teamIdInput').value.trim()); }
+    function logout(){ localStorage.removeItem(CONFIG.tokenStorageKey); localStorage.removeItem(CONFIG.teamIdStorageKey); state.authToken=null; state.teamId=null; state.tasks=[]; state.meetings=[]; renderAuthNeeded(); }
+
+    /*********************** Добавление ***********************/
+    async function addTask(){
+      if(!state.authToken||!state.teamId){ showError('Сначала войдите'); return; }
+      const name=$('#taskName').value.trim(); const desc=$('#taskDesc').value.trim(); if(!name){ alert('Введите название задачи'); return; }
+      const ymd=toYMD(state.selectedDate); const payload={name, description: desc||null, deadline_at:`${ymd}T00:00:00`};
+      const temp={id:Math.random()*1e9|0,name,description:desc||null,deadline_at:payload.deadline_at}; state.tasks.unshift(temp); renderViews();
+      try{ const created=await apiPost(urlTasksPost(), payload); state.tasks=[created,...state.tasks.filter(t=>t!==temp)]; $('#taskName').value=''; $('#taskDesc').value=''; }
+      catch(e){ state.tasks=state.tasks.filter(t=>t!==temp); showError(String(e.message||e)); }
+      renderViews();
+    }
+    async function addMeeting(){
+      if(!state.authToken||!state.teamId){ showError('Сначала войдите'); return; }
+      const title=$('#meetTitle').value.trim(); if(!title){ alert('Введите заголовок'); return; }
+      const ymd=toYMD(state.selectedDate);
+      const sDate=$('#meetStartDate').value||ymd; const sTime=$('#meetStartTime').value||'09:00';
+      const eDate=$('#meetEndDate').value||ymd; const eTime=$('#meetEndTime').value||'10:00';
+      const payload={title,description:null,starts_at:mkISO(sDate,sTime),ends_at:mkISO(eDate,eTime)};
+      const temp={id:Math.random()*1e9|0,title,description:null,starts_at:payload.starts_at,ends_at:payload.ends_at}; state.meetings.unshift(temp); renderViews();
+      try{ const created=await apiPost(urlMeetingsPost(), payload); state.meetings=[created,...state.meetings.filter(m=>m!==temp)]; $('#meetTitle').value=''; $('#meetStartDate').value=''; $('#meetStartTime').value=''; $('#meetEndDate').value=''; $('#meetEndTime').value=''; }
+      catch(e){ state.meetings=state.meetings.filter(m=>m!==temp); showError(String(e.message||e)); }
+      renderViews();
+    }
+
+    /*********************** Навигация/старт ***********************/
+    function setView(v){ state.view=v; $('#btnMonth').classList.toggle('primary', v==='month'); $('#btnDay').classList.toggle('primary', v==='day'); }
+
+    $('#btnMonth').addEventListener('click', ()=>{ setView('month'); renderViews(); });
+    $('#btnDay').addEventListener('click', ()=>{ setView('day'); renderViews(); });
+    $('#prevDay').addEventListener('click', ()=>{ state.selectedDate=addDays(state.selectedDate,-1); renderViews(); });
+    $('#nextDay').addEventListener('click', ()=>{ state.selectedDate=addDays(state.selectedDate,1); renderViews(); });
+    $('#today').addEventListener('click', ()=>{ const n=new Date(); state.selectedDate=new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),n.getUTCDate())); renderViews(); });
+
+    $('#addTask').addEventListener('click', addTask);
+    $('#addMeeting').addEventListener('click', addMeeting);
+    $('#btnLogin').addEventListener('click', doLogin);
+    $('#btnUseToken').addEventListener('click', useProvidedToken);
+    $('#logout').addEventListener('click', logout);
+
+    (function start(){
+      setView('month');
+      const savedToken=localStorage.getItem(CONFIG.tokenStorageKey);
+      const savedTeamId=localStorage.getItem(CONFIG.teamIdStorageKey);
+      if(savedToken){ state.authToken=savedToken; }
+      if(savedTeamId){ state.teamId=Number(savedTeamId); }
+      if(state.authToken && state.teamId){ loadAll(); }
+      else { renderAuthNeeded(); }
+      $('#currentDate').textContent = formatHuman(state.selectedDate);
+    })();
+  </script>
+</body>
+</html>
