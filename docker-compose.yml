@@ -11,10 +11,21 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+  db_test:
+    container_name: "db_test"
+    image: postgres:14.1-alpine
+    environment:
+      - POSTGRES_USER=postgres_test
+      - POSTGRES_PASSWORD=postgres_test
+      - POSTGRES_DB=postgres_test
+    ports:
+      - "5433:5432"
   api:
     build: .
     environment:
       DATABASE_URL: postgresql+asyncpg://default_user:default_pass@database:5432/busines_db
+    # env_file:
+    #   - .env
     ports:
       - "8000:8000"
     volumes:

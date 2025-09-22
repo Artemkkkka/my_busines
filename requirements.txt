@@ -1,9 +1,11 @@
 psycopg2-binary==2.9.10
 fastapi[standard]
 fastapi-users[sqlalchemy]
+fastapi_users_db_sqlalchemy==7.0.0
 pydantic-settings==2.10.1
 sqlalchemy[asyncio]
 sqladmin[full]
 asyncpg==0.30.0
 alembic==1.16.4
 black==25.1.0
+pytest==8.4.2

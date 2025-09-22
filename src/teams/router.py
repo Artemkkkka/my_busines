@@ -29,7 +29,7 @@ teams_router = APIRouter(
 async def create_team(
     payload: TeamCreate,
     session: SessionDep,
-    user: User = Depends(require_team_admin_or_superuser),
+    # user: User = Depends(require_team_admin_or_superuser),
 ):
     team = await crud_create_team(payload, session, user)
 
