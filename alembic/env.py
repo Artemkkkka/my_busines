@@ -1,4 +1,6 @@
-from __future__ import annotations
+import os
+
+# from __future__ import annotations
 from logging.config import fileConfig
 
 from alembic import context
@@ -27,17 +29,29 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 
-def _get_sync_url_from_settings() -> str:
-    url = str(settings.db.url)
-    if "+aiosqlite" in url:
-        return url.replace("+aiosqlite", "")
+# def _get_sync_url_from_settings() -> str:
+#     url = str(settings.db.url)
+#     if "+aiosqlite" in url:
+#         return url.replace("+aiosqlite", "")
+#     if url.startswith("postgresql+asyncpg"):
+#         return url.replace("+asyncpg", "")
+#     return url
+
+def _get_sync_url() -> str:
+    url = os.getenv("APP_CONFIG__DB__URL") \
+          or config.get_main_option("sqlalchemy.url") \
+          or str(settings.db.url)
+
+    url = str(url)
     if url.startswith("postgresql+asyncpg"):
-        return url.replace("+asyncpg", "")
+        url = url.replace("+asyncpg", "")
+    if "+aiosqlite" in url:
+        url = url.replace("+aiosqlite", "")
     return url
 
 
 def run_migrations_offline() -> None:
-    url = _get_sync_url_from_settings()
+    url = _get_sync_url()
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -52,7 +66,7 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     configuration = config.get_section(config.config_ini_section)
-    configuration["sqlalchemy.url"] = _get_sync_url_from_settings()
+    configuration["sqlalchemy.url"] = _get_sync_url()
     connectable = engine_from_config(configuration, prefix="sqlalchemy.", poolclass=pool.NullPool)
     with connectable.connect() as connection:
         context.configure(

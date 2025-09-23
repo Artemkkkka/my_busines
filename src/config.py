@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     )
     run: RunConfig = RunConfig()
     db: DatabaseConfig
-    db_test: str = "postgresql+asyncpg://postgres_test:postgres_test@0.0.0.0:5433/postgres_test"
+    db_test: str = "postgresql+asyncpg://postgres_test:postgres_test@db_test:5432/postgres_test"
     secret: str
 
 
