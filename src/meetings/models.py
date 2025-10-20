@@ -57,13 +57,3 @@ class Meeting(Base, TimestampMixin):
         lazy="selectin",
         backref=backref("meetings", lazy="selectin"),
     )
-
-    __table_args__ = (
-        ExcludeConstraint(
-            ('team_id', '='),
-            (func.tstzrange(starts_at, ends_at, '[)'), '&&'),
-            name='excl_meeting_team_time',
-            using='gist',
-            where=(status == MeetingStatus.scheduled),  # не мешаем canceled
-        ),
-    )

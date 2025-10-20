@@ -13,8 +13,3 @@ class Evaluation(Base):
     rated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     task: Mapped["Task"] = relationship(back_populates="rating_obj")
-
-    __table_args__ = (
-        CheckConstraint("value >= 1 AND value <= 5", name="ck_task_rating_value"),
-        UniqueConstraint("task_id", name="uq_task_rating_task_id"),
-    )
