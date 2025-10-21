@@ -82,6 +82,7 @@ pip install pytest-cov
 ```
 - Запуск:
 ```bash
-pytest --cov=api_yamdb
+pytest --cov=src
 ```
+
 
