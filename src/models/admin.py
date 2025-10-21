@@ -1,4 +1,3 @@
-#TODO сделать более красивую админку, добавить __str__ для моделей
 from sqladmin import ModelView
 
 from src.users.models import User

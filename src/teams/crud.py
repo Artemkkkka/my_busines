@@ -233,7 +233,6 @@ async def remove_team_users(
     payload: TeamMembersDelete,
     session: AsyncSession,
 ):
-    # 1) команда
     res = await session.execute(
         select(Team).options(selectinload(Team.members)).where(Team.id == team_id)
     )
@@ -243,11 +242,9 @@ async def remove_team_users(
 
     to_remove_ids = set(payload.user_ids)
 
-    # нельзя удалить владельца
     if team.owner_id in to_remove_ids:
         raise HTTPException(status_code=400, detail="Cannot remove team owner")
 
-    # 2) загрузим указанных пользователей
     res = await session.execute(select(User).where(User.id.in_(to_remove_ids)))
     db_users = res.scalars().all()
     found_ids = {u.id for u in db_users}
@@ -257,7 +254,6 @@ async def remove_team_users(
             status_code=404, detail=f"Users not found: {missing}"
         )
 
-    # 3) проверить, что они в этой команде
     not_in_team = sorted([u.id for u in db_users if u.team_id != team.id])
     if not_in_team:
         raise HTTPException(
@@ -265,7 +261,6 @@ async def remove_team_users(
             detail=f"Users not in this team: {not_in_team}",
         )
 
-    # 4) не удалить последнего админа
     current_admin_ids = {u.id for u in team.members if u.role_in_team == TeamRole.admin}
     admins_after = current_admin_ids - to_remove_ids
     if not admins_after:
@@ -274,14 +269,12 @@ async def remove_team_users(
             detail="Cannot remove the last admin of the team",
         )
 
-    # 5) отвязка пользователей
     for u in db_users:
         u.team_id = None
-        u.role_in_team = TeamRole.employee  # безопасное значение вне команды
+        u.role_in_team = TeamRole.employee
 
     await session.commit()
 
-    # 6) вернуть обновлённый список участников
     res = await session.execute(
         select(User)
         .where(User.team_id == team.id)

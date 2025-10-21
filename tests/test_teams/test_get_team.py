@@ -51,4 +51,3 @@ async def test_list_team_users_returns_sorted_and_404_for_missing_team(session: 
     with pytest.raises(HTTPException) as ei:
         await list_team_users(999_999, session)
     assert ei.value.status_code == 404
-

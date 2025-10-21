@@ -1,6 +1,6 @@
 from fastapi import HTTPException, status
 
-from src.users.models import User, TeamRole  # подставь свои пути
+from src.users.models import User, TeamRole
 
 
 def ensure_can_create_team(user: User) -> None:

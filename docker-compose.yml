@@ -24,8 +24,6 @@ services:
     build: .
     environment:
       DATABASE_URL: postgresql+asyncpg://default_user:default_pass@database:5432/busines_db
-    # env_file:
-    #   - .env
     ports:
       - "8000:8000"
     volumes:
