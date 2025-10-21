@@ -44,8 +44,11 @@
 *1. Клонирование репозитория и создание виртуального окружения*
 ```bash
 git clone git@github.com:Artemkkkka/my_busines.git
+```
+```bash
 cd my_busines
-
+```
+```bash
 python3 -m venv venv
 ```
 *2. Создайте .env*
@@ -86,6 +89,7 @@ pip install pytest-cov
 ```bash
 pytest --cov=src
 ```
+
 
 
 
