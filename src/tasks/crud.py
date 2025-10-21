@@ -33,20 +33,12 @@ async def create_task(
     deadline_at: Optional[datetime] = None,
     assignee_id: Optional[int] = None,
 ) -> Task:
-    """Создать задачу внутри конкретной команды."""
-
     team = await _get_team_or_404(session, team_id)
     author = await _get_user_or_404(session, author_id)
-
-    # Автор обязан состоять в этой команде
-    # if author.team_id != team.id:
-    #     raise ForbiddenError("Author is not a member of this team")
 
     assignee: Optional[User] = None
     if assignee_id is not None:
         assignee = await _get_user_or_404(session, assignee_id)
-    #     if assignee.team_id != team.id:
-    #         raise ValidationError("Assignee must belong to the same team")
 
     task = Task(
         team_id=team.id,
