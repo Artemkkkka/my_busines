@@ -1,27 +1,11 @@
-'''
-1) Создание встречи. 
-team_id проставляется в соответствии с team_id пользователя, которой создаёт ручку
-
-2) Получение встречи по дате.
-team_id проставляется в соответствии с team_id пользователя, которой дёргает ручку
-
-3) Получение всех встреч пользователя. 
-team_id проставляется в соответствии с team_id пользователя, которой дёргает ручку
-
-
-4) Получение всех встреч команды.
-team_id проставляется в соответствии с team_id пользователя, которой дёргает ручку
-только админ или суперюзер
-'''
 from datetime import datetime
 
 from fastapi import HTTPException, status
-from sqlalchemy import select, and_, exists
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import select, and_
 from sqlalchemy.orm import selectinload
 
 from src.users.models import User
-from src.meetings.models import Meeting, MeetingStatus, meeting_participants
+from src.meetings.models import Meeting, MeetingStatus
 from src.meetings.schemas import MeetingCreate, MeetingUpdate
 from src.core.dependencies import AsyncSession
 
@@ -44,6 +28,7 @@ async def create_meeting(
     await session.refresh(obj)
 
     return obj
+
 
 async def get_meetings_by_date(
     user: User,
@@ -127,13 +112,11 @@ async def update_meeting(
     if not obj:
         raise HTTPException(status_code=404, detail="Meeting not found")
 
-    # применяем изменения
     data = payload.model_dump(exclude_unset=True)
     print(data)
     for k, v in data.items():
         setattr(obj, k, v)
 
-    # спец-правило: ends_at в апдейте => canceled
     if "ends_at" in data and data["ends_at"] is not None:
         obj.status = "canceled"
 

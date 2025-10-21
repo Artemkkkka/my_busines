@@ -1,15 +1,12 @@
-from datetime import datetime, date, time
+from datetime import datetime
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
-from sqlalchemy import select, and_
 
 from src.core.dependencies import CurrentUser, SessionDep
 from src.evaluations.permissions import forbid_employee, require_team_admin_or_superuser
 from src.users.models import User
 from src.meetings.checks.check_time import ensure_no_overlap
-from src.meetings.models import Meeting
 from src.meetings.crud import (
     create_meeting as crud_create_meeting,
     get_meetings_by_date as crud_get_meetings_by_date,

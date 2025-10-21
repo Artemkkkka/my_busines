@@ -14,6 +14,7 @@ from src.teams.models import Base
 def anyio_backend():
     return "asyncio"
 
+
 @pytest_asyncio.fixture
 async def engine():
     eng = create_async_engine(
@@ -27,6 +28,7 @@ async def engine():
         yield eng
     finally:
         await eng.dispose()
+
 
 @pytest_asyncio.fixture
 async def session(engine):

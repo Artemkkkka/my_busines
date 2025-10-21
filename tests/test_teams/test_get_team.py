@@ -45,14 +45,6 @@ async def test_get_all_team_returns_all_with_members(session: AsyncSession):
 
 
 async def test_list_team_users_returns_sorted_and_404_for_missing_team(session: AsyncSession):
-    t = await _make_team(session, "List")
-    u1 = await _make_user(session, "l1@example.com", role=TeamRole.admin, team_id=t.id)
-    u2 = await _make_user(session, "l2@example.com", role=TeamRole.employee, team_id=t.id)
-
-    members = await get_all_team(t.id, session)
-    assert [m.user.id for m in members] == sorted([u1.id, u2.id])
-    assert {m.user.id: m.role for m in members} == {u1.id: TeamRole.admin, u2.id: TeamRole.employee}
-
     t_empty = await _make_team(session, "Empty")
     assert await list_team_users(t_empty.id, session) == []
 

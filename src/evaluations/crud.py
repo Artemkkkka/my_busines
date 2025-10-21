@@ -12,7 +12,6 @@ async def rate_task(
     session: AsyncSession,
     team_id: int,
     task_id: int,
-    actor_id: int,
     rating: int,
 ) -> Evaluation:
     task = await session.scalar(select(Task).where(Task.id == task_id, Task.team_id == team_id))
