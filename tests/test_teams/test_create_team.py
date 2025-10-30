@@ -49,7 +49,7 @@ async def test_create_team_success_adds_owner_and_members(session: AsyncSession)
     assert team_read.name == "Platform"
 
 
-async def test_create_team_ignores_nonexistent_member_ids(session: AsyncSession):
+async def test_create_team_rejects_nonexistent_member_ids(session):
     owner = await _make_user(session, "owner@example.com")
     existing = await _make_user(session, "exists@example.com")
 
@@ -61,19 +61,16 @@ async def test_create_team_ignores_nonexistent_member_ids(session: AsyncSession)
         ],
     )
 
-    team_read = await create_team(payload, session, user=owner)
+    with pytest.raises(HTTPException) as exc:
+        await create_team(payload, session, user=owner)
 
-    db_team = (await session.execute(select(Team).where(Team.name == "Ghosts"))).scalar_one()
-    team_users = (await session.execute(select(User).where(User.team_id == db_team.id))).scalars().all()
+    assert exc.value.status_code == 404
+    assert "Users not found" in str(exc.value.detail)
 
-    assert {u.id for u in team_users} == {owner.id, existing.id}
-
-    by_id = {u.id: u for u in team_users}
-    assert by_id[owner.id].role_in_team == TeamRole.admin
-    assert by_id[existing.id].role_in_team == TeamRole.employee
-
-    returned_ids = {m.user.id for m in team_read.members}
-    assert returned_ids == {owner.id, existing.id}
+    owner_db = (await session.execute(select(User).where(User.id == owner.id))).scalar_one()
+    existing_db = (await session.execute(select(User).where(User.id == existing.id))).scalar_one()
+    assert owner_db.team_id is None
+    assert existing_db.team_id is None
 
 
 async def test_create_team_conflict_when_user_in_another_team(session: AsyncSession):

@@ -1,6 +1,6 @@
 from typing import Sequence
 
-from fastapi import HTTPException, status, Depends
+from fastapi import HTTPException, status
 from sqlalchemy import select, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
@@ -13,29 +13,49 @@ from src.users.models import User, TeamRole
 
 async def create_team(team_create: TeamCreate, session: AsyncSession, user: User):
     team = Team(name=team_create.name, owner_id=user.id)
-    team.owner_id = user.id
     session.add(team)
     await session.flush()
 
     team_create.members.append(TeamMemberIn(user_id=user.id, role=TeamRole.admin))
-    dct_members = {m.user_id: m.role for m in team_create.members}
 
     incoming_ids = {member.user_id for member in team_create.members}
-    user_ids = list(incoming_ids)
+    roles_by_user_id = {
+        member.user_id: member.role for member in team_create.members
+    }
 
-    res = await session.execute(select(User).where(User.id.in_(user_ids)))
-    db_users = res.scalars().all()
+    found_ids = set(
+        (await session.execute(
+            select(User.id).where(User.id.in_(incoming_ids))
+        )).scalars().all()
+    )
+    missing = sorted(incoming_ids - found_ids)
+    if missing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Users not found: {missing}")
 
-    conflicts = [u.id for u in db_users if u.team_id and u.team_id != team.id]
+    conflicts = (await session.execute(
+        select(User.id).where(
+            User.id.in_(found_ids),
+            User.team_id.is_not(None),
+            User.team_id != team.id,
+        )
+    )).scalars().all()
+
     if conflicts:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Users already in another team: {sorted(conflicts)}"
         )
 
-    for u in db_users:
-        u.team_id = team.id
-        u.role_in_team = dct_members.get(u.id)
+    db_users = (await session.execute(
+        select(User).where(User.id.in_(found_ids))
+    )).scalars().all()
+
+    for user in db_users:
+        user.team_id = team.id
+        user.role_in_team = roles_by_user_id.get(user.id)
+
+
+
 
     await session.commit()
     res = await session.execute(
@@ -48,10 +68,10 @@ async def create_team(team_create: TeamCreate, session: AsyncSession, user: User
         name=team.name,
         members=[
             TeamMemberRead(
-                user=UserShort(id=u.id, email=u.email),
-                role=u.role_in_team,
+                user=UserShort(id=user.id, email=user.email),
+                role=user.role_in_team,
             )
-            for u in team.members
+            for user in team.members
         ],
     )
     return team_read
@@ -72,10 +92,10 @@ async def get_team(team_id: int, session: AsyncSession) -> TeamRead:
 
     members = [
         TeamMemberRead(
-            user=UserShort(id=r.id, email=r.email),
-            role=r.role_in_team or TeamRole.employee,
+            user=UserShort(id=row.id, email=row.email),
+            role=row.role_in_team or TeamRole.employee,
         )
-        for r in rows]
+        for row in rows]
 
     return TeamRead(name=team.name, members=members)
 
@@ -85,7 +105,7 @@ async def get_all_team(session: AsyncSession):
     if not teams:
         return []
 
-    team_ids = [t.id for t in teams]
+    team_ids = [team.id for team in teams]
 
     q_users = (
         select(User.id, User.email, User.role_in_team, User.team_id)
@@ -95,17 +115,17 @@ async def get_all_team(session: AsyncSession):
     rows = (await session.execute(q_users)).all()
 
     members_by_team: dict[int, list[TeamMemberRead]] = {tid: [] for tid in team_ids}
-    for r in rows:
-        members_by_team[r.team_id].append(
+    for row in rows:
+        members_by_team[row.team_id].append(
             TeamMemberRead(
-                user=UserShort(id=r.id, email=r.email),
-                role=r.role_in_team or TeamRole.employee,
+                user=UserShort(id=row.id, email=row.email),
+                role=row.role_in_team or TeamRole.employee,
             )
         )
 
     return [
-        TeamRead(name=t.name, members=members_by_team.get(t.id, []))
-        for t in teams
+        TeamRead(name=team.name, members=members_by_team.get(team.id, []))
+        for team in teams
     ]
 
 
@@ -129,30 +149,41 @@ async def update_team(
 
     if members:
         roles_by_user_id: dict[int, TeamRole] = {}
-        for m in members:
-            roles_by_user_id[m.user_id] = m.role
+        for member in members:
+            roles_by_user_id[member.user_id] = member.role
 
         incoming_ids = set(roles_by_user_id.keys())
         res = await session.execute(select(User).where(User.id.in_(incoming_ids)))
         db_users: Sequence[User] = res.scalars().all()
 
-        found_ids = {u.id for u in db_users}
+        found_ids = set(
+            (await session.execute(
+                select(User.id).where(User.id.in_(incoming_ids))
+            )).scalars().all()
+        )
+
         missing = sorted(incoming_ids - found_ids)
         if missing:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Users not found: {missing}"
             )
-        conflicts = [u.id for u in db_users if u.team_id and u.team_id != team.id]
+        conflicts = (await session.execute(
+            select(User.id).where(
+                User.id.in_(found_ids),
+                User.team_id.is_not(None),
+                User.team_id != team.id,
+            )
+        )).scalars().all()
         if conflicts:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=f"Users already in another team: {sorted(conflicts)}"
             )
 
-        for u in db_users:
-            u.team_id = team.id
-            u.role_in_team = roles_by_user_id.get(u.id, u.role_in_team)
+        for user in db_users:
+            user.team_id = team.id
+            user.role_in_team = roles_by_user_id.get(user.id, user.role_in_team)
 
     session.add(team)
     await session.commit()
@@ -162,7 +193,6 @@ async def update_team(
         .options(selectinload(Team.members))
         .where(Team.id == team.id)
     )
-    team = res.scalar_one()
 
     return TeamRead(
         name=team.name,
