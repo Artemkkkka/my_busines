@@ -96,7 +96,7 @@ async def get_team_meetings(
 async def get_meeting(
     meeting_id: int,
     session: SessionDep,
-    current_user: User = Depends(require_team_admin_or_superuser),
+    # current_user: User = Depends(require_team_admin_or_superuser),
 ):
     return await crud_get_meeting(
         meeting_id=meeting_id,

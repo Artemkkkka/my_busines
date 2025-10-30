@@ -54,7 +54,7 @@
       <button id="nextDay" class="btn" title="Следующий день">→</button>
       <button id="today" class="btn">Сегодня</button>
       <div class="spacer"></div>
-      <button id="logout" class="btn ghost" title="Выйти">Выйти</button>
+      <button id="logout" class="btn ghost" title="Выйти" style="display:none">Выйти</button>
       <div id="status" class="muted"></div>
     </div>
 
@@ -76,20 +76,11 @@
         </div>
         <div class="row">
           <button id="btnLogin" class="btn primary">Войти</button>
-          <span class="muted">или вставьте готовый токен ниже</span>
         </div>
         <div class="grid grid-2">
-          <div>
-            <label>Готовый токен (если есть)</label>
-            <input id="tokenInput" placeholder="Bearer токен" />
-          </div>
-          <div>
-            <label>Team ID (если токен/профиль не вернёт его сам)</label>
-            <input id="teamIdInput" placeholder="например, 9" />
-          </div>
         </div>
         <div>
-          <button id="btnUseToken" class="btn">Использовать этот токен</button>
+          <button id="btnUseToken" class="btn"></button>
         </div>
       </div>
     </div>
@@ -179,7 +170,7 @@
     function authHeaders(){ const t=state.authToken||localStorage.getItem(CONFIG.tokenStorageKey)||""; const h={'Content-Type':'application/json'}; if(t) h['Authorization']=`Bearer ${t}`; return h; }
     function urlTasksList(){ return `${CONFIG.baseUrl}/teams/${state.teamId}/tasks`; }
     function urlTasksPost(){ return `${CONFIG.baseUrl}/teams/${state.teamId}/tasks/`; }
-    function urlMeetingsTeam(){ return `${CONFIG.baseUrl}/meetings/team`; }
+    function urlMeetingsTeam(){ return `${CONFIG.baseUrl}/meetings/my`; }
     function urlMeetingsPost(){ return `${CONFIG.baseUrl}/meetings`; }
 
     async function apiGet(url){ const r=await fetch(url,{headers:authHeaders()}); if(!r.ok) throw new Error(`GET ${url} → ${r.status}`); return r.json(); }
@@ -241,7 +232,12 @@
     function setStatus(t){ $('#status').textContent=t||''; }
     function showError(t){ const el=$('#err'); el.textContent=t; el.style.display='block'; }
     function hideError(){ $('#err').style.display='none'; }
-    function renderAuthNeeded(){ $('#loginCard').style.display='block'; $('#monthView').style.display='none'; $('#dayView').style.display='none'; }
+    function renderAuthNeeded(){ 
+      $('#loginCard').style.display='block';
+      $('#monthView').style.display='none';
+      $('#dayView').style.display='none';
+      $('#logout').style.display='none';
+    }
 
     async function doLogin(){
       hideError();
@@ -270,11 +266,18 @@
       if(!teamId){ showError('Не удалось определить team_id. Укажите его в поле Team ID.'); return; }
       state.teamId = Number(teamId); localStorage.setItem(CONFIG.teamIdStorageKey, String(state.teamId));
       $('#loginCard').style.display='none';
+      $('#logout').style.display='inline-block';
       await loadAll();
     }
 
     function useProvidedToken(){ hideError(); const t=$('#tokenInput').value.trim(); if(!t){ showError('Вставьте токен'); return; } setAuthAndMaybeTeam(t, $('#teamIdInput').value.trim()); }
-    function logout(){ localStorage.removeItem(CONFIG.tokenStorageKey); localStorage.removeItem(CONFIG.teamIdStorageKey); state.authToken=null; state.teamId=null; state.tasks=[]; state.meetings=[]; renderAuthNeeded(); }
+    function logout(){ 
+      localStorage.removeItem(CONFIG.tokenStorageKey);
+      localStorage.removeItem(CONFIG.teamIdStorageKey);
+      state.authToken=null; state.teamId=null; state.tasks=[]; state.meetings=[];
+      setStatus('');
+      $('#logout').style.display='none';
+      renderAuthNeeded(); }
 
     /*********************** Добавление ***********************/
     async function addTask(){
@@ -320,6 +323,7 @@
       const savedTeamId=localStorage.getItem(CONFIG.teamIdStorageKey);
       if(savedToken){ state.authToken=savedToken; }
       if(savedTeamId){ state.teamId=Number(savedTeamId); }
+      $('#logout').style.display = (state.authToken && state.teamId) ? 'inline-block' : 'none';
       if(state.authToken && state.teamId){ loadAll(); }
       else { renderAuthNeeded(); }
       $('#currentDate').textContent = formatHuman(state.selectedDate);
