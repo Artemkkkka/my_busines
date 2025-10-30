@@ -1,13 +1,13 @@
 from typing import Optional
 import logging
 
-
 from fastapi import Depends, Request
 from fastapi_users import BaseUserManager, IntegerIDMixin
 
 from src.users.models import User
 from src.config import settings
 from src.database import get_user_db
+
 
 log = logging.getLogger(__name__)
 

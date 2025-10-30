@@ -2,8 +2,7 @@ from fastapi import Depends, APIRouter, status
 from fastapi.responses import JSONResponse
 
 from src.core.dependencies import CurrentUser
-from src.auth.manager import UserManager, get_user_manager
-from src.users.models import User
+from src.users.manager import UserManager, get_user_manager
 
 
 users_router = APIRouter()

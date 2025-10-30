@@ -1,6 +1,6 @@
 import contextlib
 
-from src.auth.manager import get_user_manager, UserManager
+from src.users.manager import get_user_manager, UserManager
 from src.database import db_helper, get_user_db
 from src.auth.schemas import UserCreate
 
