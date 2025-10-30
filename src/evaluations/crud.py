@@ -21,6 +21,12 @@ async def rate_task(
     if task.status != Status.done:
         raise HTTPException(status_code=409, detail="Task must be done to be rated")
 
+    existing_eval_id = await session.scalar(
+        select(Evaluation.id).where(Evaluation.task_id == task.id)
+    )
+    if existing_eval_id is not None:
+        raise HTTPException(status_code=409, detail="Task already rated")
+
     now_utc = datetime.now(timezone.utc).replace(second=0, microsecond=0)
 
     rating_row = Evaluation(task_id=task.id, value=rating, rated_at=now_utc)
