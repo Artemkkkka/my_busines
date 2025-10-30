@@ -30,7 +30,6 @@ async def rate_task_endpoint(
         session,
         team_id=team_id,
         task_id=task_id,
-        actor_id=user.id,
         rating=payload.rating,
     )
     return EvaluationRead(task_id=row.task_id, value=row.value, rated_at=row.rated_at)
