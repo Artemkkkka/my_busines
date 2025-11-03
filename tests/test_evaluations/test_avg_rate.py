@@ -3,7 +3,7 @@ import pytest
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.evaluations.crud import get_avg_rating_for_period
+from src.evaluations.crud import TaskEvaluationCRUD
 from src.evaluations.models import Evaluation
 from src.tasks.models import Status
 from src.users.models import TeamRole
@@ -38,7 +38,7 @@ async def test_get_avg_rating_for_period_filters_by_team_status_and_inclusive_da
     date_from = e2.rated_at
     date_to = e2.rated_at
 
-    avg, cnt = await get_avg_rating_for_period(session, team_id=team_a.id, date_from=date_from, date_to=date_to)
+    avg, cnt = await TaskEvaluationCRUD.get_avg_rating_for_period(session, team_id=team_a.id, date_from=date_from, date_to=date_to)
 
     assert cnt == 1
     assert avg == pytest.approx(5.0, rel=1e-12)

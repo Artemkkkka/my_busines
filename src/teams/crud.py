@@ -12,7 +12,8 @@ from src.users.models import User, TeamRole
 
 
 class TeamCRUD:
-    async def create_team(self, team_create: TeamCreate, session: AsyncSession, user: User) -> TeamRead:
+    @staticmethod
+    async def create_team(team_create: TeamCreate, session: AsyncSession, user: User) -> TeamRead:
         team = Team(name=team_create.name, owner_id=user.id)
         session.add(team)
         await session.flush()
@@ -71,8 +72,9 @@ class TeamCRUD:
             ],
         )
         return team_read
-
-    async def get_team(self, team_id: int, session: AsyncSession) -> TeamRead:
+    
+    @staticmethod
+    async def get_team(team_id: int, session: AsyncSession) -> TeamRead:
         stmt_team = select(Team).where(Team.id == team_id)
         team = (await session.execute(stmt_team)).scalar_one_or_none()
         if not team:
@@ -94,8 +96,9 @@ class TeamCRUD:
         ]
 
         return TeamRead(name=team.name, members=members)
-
-    async def get_all_teams(self, session: AsyncSession) -> list[TeamRead]:
+    
+    @staticmethod
+    async def get_all_teams(session: AsyncSession) -> list[TeamRead]:
         teams = (await session.execute(select(Team).order_by(Team.id))).scalars().all()
         if not teams:
             return []
@@ -122,9 +125,9 @@ class TeamCRUD:
             TeamRead(name=team.name, members=members_by_team.get(team.id, []))
             for team in teams
         ]
-
+    
+    @staticmethod
     async def update_team(
-        self,
         session: AsyncSession,
         team_id: int,
         new_name: str | None = None,
@@ -194,7 +197,8 @@ class TeamCRUD:
             ],
         )
 
-    async def delete_team(self, session: AsyncSession, team_id: int) -> bool:
+    @staticmethod
+    async def delete_team(session: AsyncSession, team_id: int) -> bool:
         try:
             exists = await session.scalar(select(Team.id).where(Team.id == team_id))
             if not exists:
@@ -216,7 +220,8 @@ class TeamCRUD:
             await session.rollback()
             raise
 
-    async def list_team_users(self, team_id: int, session: AsyncSession) -> list[TeamMemberRead]:
+    @staticmethod
+    async def list_team_users(team_id: int, session: AsyncSession) -> list[TeamMemberRead]:
         res = await session.execute(
             select(User)
             .where(User.team_id == team_id)
@@ -237,8 +242,8 @@ class TeamCRUD:
             for u in users
         ]
 
+    @staticmethod
     async def remove_team_users(
-        self,
         team_id: int,
         payload: TeamMembersDelete,
         session: AsyncSession,

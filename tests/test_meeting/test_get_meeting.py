@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.meetings.crud import get_meeting, get_meetings_by_date, get_team_meetings, get_user_meetings
+from src.meetings.crud import MeetingCRUD
 from tests.helpers import _make_user, _make_team, _make_meeting
 
 
@@ -22,7 +22,7 @@ async def test_get_meetings_by_date_filters_by_team_and_time(session: AsyncSessi
     await _make_meeting(session, team_id=team.id, starts_at=now + timedelta(hours=1), ends_at=now + timedelta(hours=2))
     await _make_meeting(session, team_id=other_team.id, starts_at=now - timedelta(hours=2), ends_at=now - timedelta(hours=1, minutes=30))
 
-    result = await get_meetings_by_date(user=user, date=date_cut, session=session)
+    result = await MeetingCRUD.get_meetings_by_date(user=user, date=date_cut, session=session)
 
     assert [m.id for m in result] == [in_range.id]
 
@@ -52,7 +52,7 @@ async def test_get_user_meetings_respects_status_time_and_limit(session: AsyncSe
         starts_at=now - timedelta(hours=2), ends_at=now - timedelta(hours=1, minutes=30)
     )
 
-    result = await get_user_meetings(
+    result = await MeetingCRUD.get_user_meetings(
         session=session,
         requester=req,
         starts_after=now - timedelta(hours=3),
@@ -78,7 +78,7 @@ async def test_get_team_meetings_sorted_desc(session: AsyncSession):
     m3 = await _make_meeting(session, team_id=team.id, starts_at=t3, ends_at=t3 + timedelta(minutes=30))
     await _make_meeting(session, team_id=other_team.id, starts_at=t2, ends_at=t2 + timedelta(minutes=30))
 
-    result = await get_team_meetings(session=session, user=user)
+    result = await MeetingCRUD.get_team_meetings(session=session, user=user)
 
     assert [m.id for m in result] == [m3.id, m2.id, m1.id]
 
@@ -93,8 +93,8 @@ async def test_get_meeting_returns_object_or_none(session: AsyncSession):
         ends_at=datetime.now() - timedelta(minutes=10),
     )
 
-    found = await get_meeting(m.id, session)
+    found = await MeetingCRUD.get_meeting(m.id, session)
     assert found is not None and found.id == m.id
 
-    missing = await get_meeting(m.id + 999, session)
+    missing = await MeetingCRUD.get_meeting(m.id + 999, session)
     assert missing is None

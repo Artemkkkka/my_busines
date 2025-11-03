@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
 
-from src.evaluations.crud import rate_task
+from src.evaluations.crud import TaskEvaluationCRUD
 from src.evaluations.models import Evaluation
 from src.evaluations.permissions import ensure_can_rate_task
 from src.tasks.models import Status
@@ -19,7 +19,7 @@ async def test_rate_task_success_creates_evaluation_with_utc_minute_trunc(sessio
     t = await _make_task(session, team_id=team.id, author_id=owner.id, status=Status.done)
 
     rating_value = 4
-    row = await rate_task(
+    row = await TaskEvaluationCRUD.rate_task(
         session,
         team_id=team.id,
         task_id=t.id,
@@ -44,7 +44,7 @@ async def test_rate_task_404_when_task_not_found(session: AsyncSession):
     other_task = await _make_task(session, team_id=stranger_team.id, author_id=stranger_owner.id, status=Status.done)
 
     with pytest.raises(HTTPException) as exc:
-        await rate_task(session, team_id=team_ok.id, task_id=other_task.id, rating=5)
+        await TaskEvaluationCRUD.rate_task(session, team_id=team_ok.id, task_id=other_task.id, rating=5)
 
     assert exc.value.status_code == 404
     assert "Task not found" in exc.value.detail
@@ -59,7 +59,7 @@ async def test_rate_task_409_when_task_not_done(session: AsyncSession):
     t = await _make_task(session, team_id=team.id, author_id=owner.id, status=not_done_status)
 
     with pytest.raises(HTTPException) as exc:
-        await rate_task(session, team_id=team.id, task_id=t.id, rating=3)
+        await TaskEvaluationCRUD.rate_task(session, team_id=team.id, task_id=t.id, rating=3)
 
     assert exc.value.status_code == 409
     assert "Task must be done" in exc.value.detail

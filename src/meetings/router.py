@@ -7,18 +7,11 @@ from src.core.dependencies import CurrentUser, SessionDep
 from src.evaluations.permissions import forbid_employee, require_team_admin_or_superuser
 from src.users.models import User
 from src.meetings.checks.check_time import ensure_no_overlap
-from src.meetings.crud import (
-    create_meeting as crud_create_meeting,
-    get_meetings_by_date as crud_get_meetings_by_date,
-    get_user_meetings as crud_get_user_meetings,
-    get_team_meetings as crud_get_team_meetings,
-    get_meeting as crud_get_meeting,
-    update_meeting as crud_update_meeting,
-    delete_meeting as crud_delete_meeting,
-)
+from src.meetings.crud import MeetingCRUD
 from src.meetings.schemas import MeetingCreate, MeetingUpdate, MeetingOut
 
 
+crud = MeetingCRUD()
 meetings_router = APIRouter(prefix="/meetings", tags=["meetings"])
 
 
@@ -43,7 +36,7 @@ async def create_meeting(
         ends_at=payload.ends_at,
     )
 
-    meeting = await crud_create_meeting(
+    meeting = await crud.create_meeting(
         user=current_user,
         payload=payload,
         session=session,
@@ -57,7 +50,7 @@ async def get_meetings_by_date(
     current_user: User = Depends(forbid_employee),
     date: datetime = Query(..., alias="moment", description="ГГГГ-ММ-ДДTчч:мм:сс"),
 ):
-    list_meeting = await crud_get_meetings_by_date(
+    list_meeting = await crud.get_meetings_by_date(
         user=current_user,
         date=date,
         session=session,
@@ -71,7 +64,7 @@ async def get_user_meetings(
     session: SessionDep,
     current_user: CurrentUser,
 ):
-    list_meetings = await crud_get_user_meetings(
+    list_meetings = await crud.get_user_meetings(
         session=session,
         requester=current_user,
     )
@@ -84,7 +77,7 @@ async def get_team_meetings(
     session: SessionDep,
     current_user: User = Depends(forbid_employee),
 ):
-    meetings = await crud_get_team_meetings(
+    meetings = await crud.get_team_meetings(
         session=session,
         user=current_user,
     )
@@ -98,7 +91,7 @@ async def get_meeting(
     session: SessionDep,
     # current_user: User = Depends(require_team_admin_or_superuser),
 ):
-    return await crud_get_meeting(
+    return await crud.get_meeting(
         meeting_id=meeting_id,
         session=session,
     )
@@ -113,7 +106,7 @@ async def update_meeting(
 ):
     await _validate_times(payload.starts_at, payload.ends_at)
 
-    obj = await crud_update_meeting(
+    obj = await crud.update_meeting(
         meeting_id=meeting_id,
         payload=payload,
         session=session,
@@ -127,8 +120,7 @@ async def delete_meeting(
     session: SessionDep,
     current_user: User = Depends(forbid_employee),
 ):
-    return await crud_delete_meeting(
+    return await crud.delete_meeting(
         meeting_id=meeting_id,
         session=session,
     )
-

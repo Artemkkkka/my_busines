@@ -4,9 +4,13 @@ from fastapi import APIRouter, Depends, status
 
 from src.core.dependencies import CurrentUser, SessionDep
 from src.users.models import User
-from .crud import rate_task, get_avg_rating_for_period, list_user_ratings
+from .crud import TaskEvaluationCRUD
 from .permissions import require_team_admin_or_superuser
 from .schemas import EvaluationCreate, EvaluationRead
+
+
+crud = TaskEvaluationCRUD()
+
 
 evaluation_router = APIRouter(
     prefix="/teams/{team_id}/tasks",
@@ -26,7 +30,7 @@ async def rate_task_endpoint(
     session: SessionDep,
     user: User = Depends(require_team_admin_or_superuser),
 ):
-    row = await rate_task(
+    row = await crud.rate_task(
         session,
         team_id=team_id,
         task_id=task_id,
@@ -43,7 +47,7 @@ async def ratings_avg_endpoint(
     session: SessionDep,
     user: CurrentUser,
 ):
-    avg, count = await get_avg_rating_for_period(
+    avg, count = await crud.get_avg_rating_for_period(
         session, team_id=team_id, date_from=date_from, date_to=date_to
     )
     return {
@@ -59,7 +63,7 @@ async def my_ratings_endpoint(
     session: SessionDep,
     actor: CurrentUser,
 ):
-    tasks, ratings, avg, count = await list_user_ratings(session, team_id=team_id, assignee_id=actor.id)
+    tasks, ratings, avg, count = await crud.list_user_ratings(session, team_id=team_id, assignee_id=actor.id)
     items = [
         {"task_id": t.id, "name": t.name, "rating": r.value, "rated_at": r.rated_at}
         for t, r in zip(tasks, ratings)

@@ -2,7 +2,7 @@ from typing import Optional, Any, Mapping
 from datetime import datetime
 
 from fastapi import HTTPException, status
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .helpers import (
@@ -11,15 +11,13 @@ from .helpers import (
     _get_task_or_404,
 )
 from .models import Status, Task, TaskComment
-from src.teams.models import Team
 from src.users.models import User
 
 
 
 class TaskCRUD:
+    @staticmethod
     async def create_task(
-        self,
-        *,
         session: AsyncSession,
         team_id: int,
         author_id: int,
@@ -50,17 +48,18 @@ class TaskCRUD:
         await session.commit()
         return task
 
-    async def get_task(self, *, session: AsyncSession, team_id: int, task_id: int) -> Task | None:
+    @staticmethod
+    async def get_task(session: AsyncSession, team_id: int, task_id: int) -> Task | None:
         stmt = select(Task).where(Task.id == task_id, Task.team_id == team_id)
         return await session.scalar(stmt)
 
-    async def get_all_tasks(self, *, session: AsyncSession, team_id: int) -> list[Task]:
+    @staticmethod
+    async def get_all_tasks(session: AsyncSession, team_id: int) -> list[Task]:
         stmt = select(Task).where(Task.team_id == team_id)
         return list((await session.scalars(stmt)).all())
 
+    @staticmethod
     async def update_task(
-        self,
-        *,
         session: AsyncSession,
         team_id: int,
         task_id: int,
@@ -85,9 +84,8 @@ class TaskCRUD:
         await session.refresh(task)
         return task
 
+    @staticmethod
     async def delete_task(
-        self,
-        *,
         session: AsyncSession,
         team_id: int,
         task_id: int,
@@ -104,9 +102,8 @@ class TaskCRUD:
         await session.delete(task)
         await session.commit()
 
+    @staticmethod
     async def create_task_comment(
-        self,
-        *,
         session: AsyncSession,
         team_id: int,
         task_id: int,
