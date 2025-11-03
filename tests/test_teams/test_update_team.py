@@ -1,10 +1,13 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.teams.crud import get_team, update_team
+from src.teams.crud import TeamCRUD
 from src.teams.schemas import TeamMemberIn
 from src.users.models import TeamRole, User
 from tests.helpers import _make_user, _make_team
+
+
+crud = TeamCRUD()
 
 
 async def test_update_team_renames_and_adds_members(session: AsyncSession):
@@ -15,7 +18,7 @@ async def test_update_team_renames_and_adds_members(session: AsyncSession):
     nu1 = await _make_user(session, "n1@example.com")
     nu2 = await _make_user(session, "n2@example.com")
 
-    dto = await update_team(
+    dto = await crud.update_team(
         session=session,
         team_id=team.id,
         new_name="New",
@@ -33,10 +36,9 @@ async def test_update_team_renames_and_adds_members(session: AsyncSession):
     assert by_id[nu1.id].role_in_team == TeamRole.admin
     assert by_id[nu2.id].role_in_team == TeamRole.employee
 
-    team_after = await get_team(team.id, session)
+    team_after = await crud.get_team(team.id, session)
     ids = {m.user.id for m in team_after.members}
     assert ids == {existing.id, nu1.id, nu2.id}
     roles = {m.user.id: m.role for m in team_after.members}
     assert roles[nu1.id] == TeamRole.admin
     assert roles[nu2.id] == TeamRole.employee
-

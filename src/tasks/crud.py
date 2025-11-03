@@ -1,135 +1,124 @@
 from typing import Optional, Any, Mapping
-from datetime import datetime, timezone
+from datetime import datetime
 
 from fastapi import HTTPException, status
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from .helpers import (
+    _get_team_or_404,
+    _get_user_or_404,
+    _get_task_or_404,
+)
 from .models import Status, Task, TaskComment
-from src.users.models import User
 from src.teams.models import Team
+from src.users.models import User
 
 
-async def _get_user_or_404(session: AsyncSession, user_id: int) -> User:
-    user = await session.scalar(select(User).where(User.id == user_id))
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-    return user
 
+class TaskCRUD:
+    async def create_task(
+        self,
+        *,
+        session: AsyncSession,
+        team_id: int,
+        author_id: int,
+        name: str,
+        description: Optional[str] = None,
+        deadline_at: Optional[datetime] = None,
+        assignee_id: Optional[int] = None,
+    ) -> Task:
+        team = await _get_team_or_404(session=session, team_id=team_id)
+        author = await _get_user_or_404(session=session, user_id=author_id)
 
-async def _get_team_or_404(session: AsyncSession, team_id: int) -> Team:
-    team = await session.scalar(select(Team).where(Team.id == team_id))
-    if not team:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-    return team
+        assignee: Optional[User] = None
+        if assignee_id is not None:
+            assignee = await _get_user_or_404(session=session, user_id=assignee_id)
 
+        task = Task(
+            team_id=team.id,
+            author_id=author.id,
+            assignee_id=assignee.id if assignee else None,
+            name=name,
+            description=description,
+            deadline_at=deadline_at,
+            status=Status.open,
+        )
 
-async def create_task(
-    session: AsyncSession,
-    team_id: int,
-    author_id: int,
-    name: str,
-    description: Optional[str] = None,
-    deadline_at: Optional[datetime] = None,
-    assignee_id: Optional[int] = None,
-) -> Task:
-    team = await _get_team_or_404(session, team_id)
-    author = await _get_user_or_404(session, author_id)
+        session.add(task)
+        await session.flush()
+        await session.commit()
+        return task
 
-    assignee: Optional[User] = None
-    if assignee_id is not None:
-        assignee = await _get_user_or_404(session, assignee_id)
+    async def get_task(self, *, session: AsyncSession, team_id: int, task_id: int) -> Task | None:
+        stmt = select(Task).where(Task.id == task_id, Task.team_id == team_id)
+        return await session.scalar(stmt)
 
-    task = Task(
-        team_id=team.id,
-        author_id=author.id,
-        assignee_id=assignee.id if assignee else None,
-        name=name,
-        description=description,
-        deadline_at=deadline_at,
-        status=Status.open,
-    )
+    async def get_all_tasks(self, *, session: AsyncSession, team_id: int) -> list[Task]:
+        stmt = select(Task).where(Task.team_id == team_id)
+        return list((await session.scalars(stmt)).all())
 
-    session.add(task)
-    await session.flush()
-    await session.commit()
-    return task
+    async def update_task(
+        self,
+        *,
+        session: AsyncSession,
+        team_id: int,
+        task_id: int,
+        data: Mapping[str, Any],
+        user: User,
+    ) -> Task:
+        task = await _get_task_or_404(session=session, team_id=team_id, task_id=task_id)
 
+        if task.author_id != user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only the author can update this task",
+            )
 
-async def get_task(session: AsyncSession, *, team_id: int, task_id: int) -> Task | None:
-    stmt = select(Task).where(Task.id == task_id, Task.team_id == team_id)
-    return await session.scalar(stmt)
+        allowed = {"name", "description", "deadline_at", "assignee_id", "status"}
+        for key, value in data.items():
+            if key in allowed:
+                setattr(task, key, value)
 
+        await session.flush()
+        await session.commit()
+        await session.refresh(task)
+        return task
 
-async def get_all_tasks(session: AsyncSession, team_id: int) -> list[Task]:
-    stmt = select(Task).where(Task.team_id == team_id)
-    return list((await session.scalars(stmt)).all())
+    async def delete_task(
+        self,
+        *,
+        session: AsyncSession,
+        team_id: int,
+        task_id: int,
+        user: User,
+    ) -> None:
+        task = await _get_task_or_404(session=session, team_id=team_id, task_id=task_id)
 
+        if task.author_id != user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only the author can update this task",
+            )
 
-async def update_task(
-    session: AsyncSession,
-    *,
-    team_id: int,
-    task_id: int,
-    data: Mapping[str, Any],
-    user: User,
-) -> Task:
-    task = await session.scalar(
-        select(Task).where(Task.id == task_id, Task.team_id == team_id)
-    )
-    if task is None:
-        raise HTTPException(status_code=404, detail="Task not found")
+        await session.delete(task)
+        await session.commit()
 
-    if task.author_id != user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the author can update this task")
+    async def create_task_comment(
+        self,
+        *,
+        session: AsyncSession,
+        team_id: int,
+        task_id: int,
+        author_id: int,
+        body: str,
+    ) -> TaskComment:
+        _ = await _get_task_or_404(session=session, team_id=team_id, task_id=task_id)
 
-    allowed = {"name", "description", "deadline_at", "assignee_id", "status"}
-    for key, value in data.items():
-        if key in allowed:
-            setattr(task, key, value)
+        comment = TaskComment(task_id=task_id, author_id=author_id, body=body)
+        session.add(comment)
 
-    await session.flush()
-    await session.commit()
-    await session.refresh(task)
-    return task
-
-
-async def delete_task(
-    session: AsyncSession,
-    *,
-    team_id: int,
-    task_id: int,
-    user: User,
-) -> None:
-    task = await session.scalar(
-        select(Task).where(Task.id == task_id, Task.team_id == team_id)
-    )
-    if task is None:
-        raise HTTPException(status_code=404, detail="Task not found")
-    if task.author_id != user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the author can update this task")
-
-    await session.delete(task)
-    await session.commit()
-
-
-async def create_task_comment(
-    session: AsyncSession,
-    team_id: int,
-    task_id: int,
-    author_id: int,
-    body: str,
-) -> TaskComment:
-    task = await session.scalar(
-        select(Task).where(Task.id == task_id, Task.team_id == team_id)
-    )
-    if task is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
-
-    comment = TaskComment(task_id=task.id, author_id=author_id, body=body)
-    session.add(comment)
-
-    await session.flush()
-    await session.commit()
-    await session.refresh(comment)
-    return comment
+        await session.flush()
+        await session.commit()
+        await session.refresh(comment)
+        return comment

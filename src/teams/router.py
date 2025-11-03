@@ -1,23 +1,15 @@
 from fastapi import APIRouter, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-from .crud import (
-    create_team as crud_create_team,
-    get_team as crud_get_team,
-    get_all_team as crud_get_all_teams,
-    update_team as crud_update_team,
-    delete_team as crud_delete_team,
-    list_team_users as crud_list_team_users,
-    remove_team_users as crud_remove_team_users,
-)
+from .crud import TeamCRUD
 from .schemas import TeamCreate, TeamRead, TeamUpdate, TeamMemberRead, TeamMembersDelete
-from.permissions import require_team_admin_or_superuser
+from .permissions import require_team_admin_or_superuser
 from src.core.dependencies import SessionDep
 from src.users.models import User
 
 
 http_bearer = HTTPBearer(auto_error=True)
-
+crud = TeamCRUD()
 
 teams_router = APIRouter(
     prefix="/team",
@@ -31,8 +23,7 @@ async def create_team(
     session: SessionDep,
     user: User = Depends(require_team_admin_or_superuser),
 ):
-    team = await crud_create_team(payload, session, user)
-
+    team = await crud.create_team(payload, session, user)
     return team
 
 
@@ -42,18 +33,17 @@ async def get_team(
     session: SessionDep,
     credentials: HTTPAuthorizationCredentials = Depends(http_bearer),
 ):
-    team = await crud_get_team(team_id, session)
-
+    team = await crud.get_team(team_id, session)
     return team
 
 
-@teams_router.get("/")
+@teams_router.get("/", response_model=list[TeamRead])
 async def get_all_teams(
     session: SessionDep,
-    redentials: HTTPAuthorizationCredentials = Depends(http_bearer),
+    credentials: HTTPAuthorizationCredentials = Depends(http_bearer),
 ) -> list[TeamRead]:
-    users = await crud_get_all_teams(session=session)
-    return users
+    teams = await crud.get_all_teams(session=session)
+    return teams
 
 
 @teams_router.patch("/{team_id}", response_model=TeamRead)
@@ -63,7 +53,7 @@ async def update_team(
     session: SessionDep,
     user: User = Depends(require_team_admin_or_superuser),
 ):
-    team = await crud_update_team(session, team_id, payload.name, payload.members)
+    team = await crud.update_team(session, team_id, payload.name, payload.members)
     return team
 
 
@@ -73,34 +63,26 @@ async def delete_team(
     session: SessionDep,
     user: User = Depends(require_team_admin_or_superuser),
 ):
-    await crud_delete_team(session, team_id)
-
+    await crud.delete_team(session, team_id)
     return {"message": "team was deleted"}
 
 
-@teams_router.get(
-    "/{team_id}/users",
-    response_model=list[TeamMemberRead],
-)
+@teams_router.get("/{team_id}/users", response_model=list[TeamMemberRead])
 async def list_team_users(
     team_id: int,
     session: SessionDep,
     credentials: HTTPAuthorizationCredentials = Depends(http_bearer),
-
 ):
-    users = await crud_list_team_users(team_id, session)
+    users = await crud.list_team_users(team_id, session)
     return users
 
 
-@teams_router.delete(
-    "/{team_id}/users",
-    response_model=list[TeamMemberRead],
-)
+@teams_router.delete("/{team_id}/users", response_model=list[TeamMemberRead])
 async def remove_team_users(
     team_id: int,
     payload: TeamMembersDelete,
     session: SessionDep,
     user: User = Depends(require_team_admin_or_superuser),
 ):
-    users = await crud_remove_team_users(team_id, payload, session)
+    users = await crud.remove_team_users(team_id, payload, session)
     return users

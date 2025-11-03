@@ -10,19 +10,12 @@ from .schemas import (
     TaskUpdate,
 )
 from src.core.dependencies import CurrentUser, SessionDep
-from src.tasks.crud import (
-    create_task as crud_create_task,
-    get_task as crud_get_task,
-    get_all_tasks as crud_get_all_tasks,
-    update_task as crud_update_task,
-    delete_task as crud_delete_task,
-    create_task_comment as crud_create_task_comment,
-
-)
+from src.tasks.crud import TaskCRUD 
 from src.users.models import User
 
 
 http_bearer = HTTPBearer(auto_error=True)
+crud = TaskCRUD()
 
 
 tasks_router = APIRouter(
@@ -38,7 +31,7 @@ async def create_task(
     session: SessionDep,
     user: User = Depends(forbid_employee),
 ):
-    task = await crud_create_task(
+    task = await crud.create_task(
         session,
         team_id=team_id,
         author_id=user.id,
@@ -58,7 +51,7 @@ async def get_task(
     session: SessionDep,
     credentials: HTTPAuthorizationCredentials = Depends(http_bearer),
 ):
-    task = await crud_get_task(session, team_id=team_id, task_id=task_id)
+    task = await crud.get_task(session, team_id=team_id, task_id=task_id)
 
     return task
 
@@ -69,7 +62,7 @@ async def list_tasks(
     session: SessionDep,
     credentials: HTTPAuthorizationCredentials = Depends(http_bearer),
 ):
-    return await crud_get_all_tasks(session, team_id=team_id)
+    return await crud.get_all_tasks(session, team_id=team_id)
 
 
 @tasks_router.patch("/{task_id}", response_model=TaskRead)
@@ -81,7 +74,7 @@ async def update_task(
     user: User = Depends(forbid_employee),
 ):
     data = payload.model_dump(exclude_unset=True)
-    task = await crud_update_task(
+    task = await crud.update_task(
         session,
         team_id=team_id,
         task_id=task_id,
@@ -98,7 +91,7 @@ async def delete_task(
     session: SessionDep,
     user: User = Depends(forbid_employee),
 ):
-    await crud_delete_task(session, team_id=team_id, task_id=task_id, user=user)
+    await crud.delete_task(session, team_id=team_id, task_id=task_id, user=user)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -110,7 +103,7 @@ async def add_comment(
     session: SessionDep,
     user: CurrentUser,
 ):
-    comment = await crud_create_task_comment(
+    comment = await crud.create_task_comment(
         session,
         team_id=team_id,
         task_id=task_id,

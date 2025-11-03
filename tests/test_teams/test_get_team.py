@@ -3,9 +3,12 @@ import pytest
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.teams.crud import get_team, get_all_team, list_team_users
+from src.teams.crud import TeamCRUD
 from src.users.models import TeamRole
 from tests.helpers import _make_user, _make_team
+
+
+crud = TeamCRUD()
 
 
 async def test_get_team_returns_members_and_defaults_role(session: AsyncSession):
@@ -14,7 +17,7 @@ async def test_get_team_returns_members_and_defaults_role(session: AsyncSession)
     u2 = await _make_user(session, "a2@example.com", role=TeamRole.employee, team_id=team.id)
     u3 = await _make_user(session, "a3@example.com", role=None, team_id=team.id)
 
-    dto = await get_team(team.id, session)
+    dto = await crud.get_team(team.id, session)
 
     assert dto.name == "Alpha"
     got_ids = [m.user.id for m in dto.members]
@@ -25,7 +28,7 @@ async def test_get_team_returns_members_and_defaults_role(session: AsyncSession)
     assert by_id[u3.id] == TeamRole.employee
 
     with pytest.raises(HTTPException) as ei:
-        await get_team(999_999, session)
+        await crud.get_team(999_999, session)
     assert ei.value.status_code == 404
 
 
@@ -37,7 +40,7 @@ async def test_get_all_team_returns_all_with_members(session: AsyncSession):
     await _make_user(session, "b2@example.com", role=TeamRole.employee, team_id=t2.id)
     await _make_user(session, "b3@example.com", role=TeamRole.employee, team_id=t2.id)
 
-    teams = await get_all_team(session)
+    teams = await crud.get_all_teams(session)
 
     assert [t.name for t in teams] == ["A", "B"]
     members_count = {t.name: len(t.members) for t in teams}
@@ -46,8 +49,8 @@ async def test_get_all_team_returns_all_with_members(session: AsyncSession):
 
 async def test_list_team_users_returns_sorted_and_404_for_missing_team(session: AsyncSession):
     t_empty = await _make_team(session, "Empty")
-    assert await list_team_users(t_empty.id, session) == []
+    assert await crud.list_team_users(t_empty.id, session) == []
 
     with pytest.raises(HTTPException) as ei:
-        await list_team_users(999_999, session)
+        await crud.list_team_users(999_999, session)
     assert ei.value.status_code == 404

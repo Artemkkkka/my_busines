@@ -3,9 +3,12 @@ from datetime import datetime
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from src.tasks.crud import create_task, get_task, update_task
+from src.tasks.crud import TaskCRUD
 from src.tasks.models import Status
 from tests.helpers import _make_user, _make_team
+
+
+crud = TaskCRUD()
 
 
 @pytest.mark.anyio
@@ -15,7 +18,7 @@ async def test_update_task_by_author_changes_fields(session: AsyncSession, engin
     author = await _make_user(session, "author3@example.com", team_id=team.id)
     assignee = await _make_user(session, "assignee3@example.com", team_id=team.id)
 
-    task = await create_task(
+    task = await crud.create_task(
         session=session,
         team_id=team.id,
         author_id=author.id,
@@ -26,7 +29,7 @@ async def test_update_task_by_author_changes_fields(session: AsyncSession, engin
     )
 
     new_deadline = datetime(2025, 3, 1, 18, 30, 0)
-    updated = await update_task(
+    updated = await crud.update_task(
         session=session,
         team_id=team.id,
         task_id=task.id,
@@ -48,7 +51,7 @@ async def test_update_task_by_author_changes_fields(session: AsyncSession, engin
 
     Session = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
     async with Session() as s2:
-        again = await get_task(s2, team_id=team.id, task_id=task.id)
+        again = await crud.get_task(session=s2, team_id=team.id, task_id=task.id)
         assert again is not None
         assert again.name == "New name"
         assert again.description == "new desc"

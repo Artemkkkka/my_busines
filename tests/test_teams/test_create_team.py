@@ -5,9 +5,7 @@ from sqlalchemy.ext.asyncio import (
     AsyncSession,
 )
 
-from src.teams.crud import (
-    create_team,
-)
+from src.teams.crud import TeamCRUD
 from src.teams.models import Team
 from src.teams.schemas import TeamCreate, TeamMemberIn
 from src.users.models import TeamRole, User
@@ -15,7 +13,7 @@ from tests.helpers import _make_team, _make_user
 
 
 pytestmark = pytest.mark.asyncio
-
+crud = TeamCRUD()
 
 async def test_create_team_success_adds_owner_and_members(session: AsyncSession):
     owner = await _make_user(session, "owner@example.com")
@@ -30,7 +28,7 @@ async def test_create_team_success_adds_owner_and_members(session: AsyncSession)
         ],
     )
 
-    team_read = await create_team(payload, session, user=owner)
+    team_read = await crud.create_team(payload, session, user=owner)
 
     db_team = (await session.execute(select(Team).where(Team.name == "Platform"))).scalar_one()
     assert db_team.owner_id == owner.id
@@ -62,7 +60,7 @@ async def test_create_team_rejects_nonexistent_member_ids(session):
     )
 
     with pytest.raises(HTTPException) as exc:
-        await create_team(payload, session, user=owner)
+        await crud.create_team(payload, session, user=owner)
 
     assert exc.value.status_code == 404
     assert "Users not found" in str(exc.value.detail)
@@ -84,7 +82,7 @@ async def test_create_team_conflict_when_user_in_another_team(session: AsyncSess
     )
 
     with pytest.raises(HTTPException) as ei:
-        await create_team(payload, session, user=owner)
+        await crud.create_team(payload, session, user=owner)
 
     assert ei.value.status_code == 409
     assert str(busy.id) in str(ei.value.detail)
@@ -106,7 +104,7 @@ async def test_create_team_duplicate_members_last_wins_and_owner_overrides_to_ad
         ],
     )
 
-    team_read = await create_team(payload, session, user=owner)
+    team_read = await crud.create_team(payload, session, user=owner)
 
     db_team = (await session.execute(select(Team).where(Team.name == "Dedup"))).scalar_one()
     users = (await session.execute(select(User).where(User.team_id == db_team.id))).scalars().all()

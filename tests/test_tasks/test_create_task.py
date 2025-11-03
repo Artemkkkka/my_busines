@@ -4,9 +4,12 @@ from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from tests.helpers import _make_user, _make_team
-from src.tasks.crud import create_task, create_task_comment
+from src.tasks.crud import TaskCRUD
 from src.tasks.models import Task, Status
 from src.users.models import TeamRole
+
+
+crud = TaskCRUD()
 
 
 @pytest.mark.anyio
@@ -21,7 +24,7 @@ async def test_create_task_with_assignee_persists_and_sets_all_fields(session: A
     description = "Reproduce, write test, patch"
     deadline = datetime(2025, 1, 15, 12, 0, 0)
 
-    task = await create_task(
+    task = await crud.create_task(
         session=session,
         team_id=team.id,
         author_id=author.id,
@@ -56,7 +59,7 @@ async def test_create_task_without_assignee(session: AsyncSession, engine):
     team = await _make_team(session, "Team B", owner_id=owner.id)
     author = await _make_user(session, "author2@example.com", team_id=team.id)
 
-    task = await create_task(
+    task = await crud.create_task(
         session=session,
         team_id=team.id,
         author_id=author.id,
@@ -87,7 +90,7 @@ async def test_create_task_raises_when_team_not_found(session: AsyncSession):
     author = await _make_user(session, "lonely_author@example.com")
 
     with pytest.raises(Exception):
-        await create_task(
+        await crud.create_task(
             session=session,
             team_id=999_999,
             author_id=author.id,
@@ -101,7 +104,7 @@ async def test_create_task_raises_when_author_not_found(session: AsyncSession):
     team = await _make_team(session, "Team C", owner_id=owner.id)
 
     with pytest.raises(Exception):
-        await create_task(
+        await crud.create_task(
             session=session,
             team_id=team.id,
             author_id=999_999,
@@ -116,7 +119,7 @@ async def test_create_task_raises_when_assignee_not_found(session: AsyncSession)
     author = await _make_user(session, "author4@example.com", team_id=team.id)
 
     with pytest.raises(Exception):
-        await create_task(
+        await crud.create_task(
             session=session,
             team_id=team.id,
             author_id=author.id,
@@ -131,7 +134,7 @@ async def test_create_task_comment_persists_and_links_to_task(session: AsyncSess
     author = await _make_user(session, "author5@example.com", team_id=team.id)
     commenter = await _make_user(session, "commenter@example.com", team_id=team.id)
 
-    task = await create_task(
+    task = await crud.create_task(
         session=session,
         team_id=team.id,
         author_id=author.id,
@@ -140,7 +143,7 @@ async def test_create_task_comment_persists_and_links_to_task(session: AsyncSess
         deadline_at=datetime(2025, 5, 1, 9, 0, 0),
     )
 
-    comment = await create_task_comment(
+    comment = await crud.create_task_comment(
         session=session,
         team_id=team.id,
         task_id=task.id,
