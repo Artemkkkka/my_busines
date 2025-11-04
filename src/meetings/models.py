@@ -34,25 +34,44 @@ class MeetingStatus(StrEnum):
 
 
 class Meeting(Base, TimestampMixin):
-
-    team_id: Mapped[int] = mapped_column(ForeignKey("team.id", ondelete="CASCADE"), index=True)
+    team_id: Mapped[int] = mapped_column(
+        ForeignKey("team.id", ondelete="CASCADE"), index=True,
+        comment="ID команды — владельца встречи",
+    )
     team: Mapped[Team] = relationship(
-        backref=backref("meetings", cascade="all, delete-orphan", lazy="selectin")
+        backref=backref(
+            "meetings", cascade="all, delete-orphan", lazy="selectin",
+            doc="Список встреч команды",
+        ),
+        doc="Команда, в рамках которой проводится встреча",
     )
-
-    title: Mapped[str] = mapped_column(String(255))
-    description: Mapped[str | None] = mapped_column(Text())
-
-    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
-    ends_at:   Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
-
+    title: Mapped[str] = mapped_column(
+        String(255),
+        comment="Заголовок встречи",
+    )
+    description: Mapped[str | None] = mapped_column(
+        Text(),
+        comment="Описание/повестка встречи (опционально)",
+    )
+    starts_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), index=True,
+        comment="Дата и время начала (с таймзоной)",
+    )
+    ends_at:   Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), index=True,
+        comment="Дата и время окончания (с таймзоной)",
+    )
     status: Mapped[MeetingStatus] = mapped_column(
-        Enum(MeetingStatus), default=MeetingStatus.scheduled, nullable=False
+        Enum(MeetingStatus), default=MeetingStatus.scheduled, nullable=False,
+        comment="Текущий статус встречи",
     )
-
     participants: Mapped[list[User]] = relationship(
         "User",
         secondary=meeting_participants,
         lazy="selectin",
-        backref=backref("meetings", lazy="selectin"),
+        backref=backref(
+            "meetings", lazy="selectin",
+            doc="Встречи, в которых участвует пользователь",
+        ),
+        doc="Участники встречи (многие-ко-многим)",
     )
