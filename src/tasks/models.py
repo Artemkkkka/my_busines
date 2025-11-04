@@ -69,7 +69,6 @@ class Task(Base, TimestampMixin):
         cascade="all, delete-orphan",
         doc="Оценка выполнения задачи (связь 1:1)",
     )
-
     team_id: Mapped[int] = mapped_column(
         ForeignKey("team.id", ondelete="CASCADE"),
         comment="ID команды-владельца задачи",

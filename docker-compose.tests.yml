@@ -1,0 +1,12 @@
+services:
+  api-tests:
+    build: .
+    profiles: ["test"]
+    environment:
+      TESTING: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      DATABASE_URL: "sqlite+aiosqlite:///:memory:"
+    volumes:
+      - ./:/app
+    command: >
+      bash -lc "pip install -r requirements.txt && pytest"

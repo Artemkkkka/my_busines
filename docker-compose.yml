@@ -1,6 +1,7 @@
 volumes:
   pgdata:
 services:
+
   database:
     image: postgres:16-alpine
     environment:
@@ -11,15 +12,7 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-  db_test:
-    container_name: "db_test"
-    image: postgres:14.1-alpine
-    environment:
-      - POSTGRES_USER=postgres_test
-      - POSTGRES_PASSWORD=postgres_test
-      - POSTGRES_DB=postgres_test
-    ports:
-      - "5433:5432"
+
   api:
     build: .
     environment:
