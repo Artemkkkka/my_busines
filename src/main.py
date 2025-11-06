@@ -97,6 +97,7 @@ admin.add_view(TaskCommentAdmin)
 admin.add_view(MeetingAdmin)
 admin.add_view(TeamAdmin)
 
+
 if __name__ == "__main__":
     uvicorn.run(
         app="main:app",

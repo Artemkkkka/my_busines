@@ -72,6 +72,16 @@ venv\Scripts\activate
 docker compose up --build
 ```
 
+*4. Устанорвка миграций*
+```bash
+docker compose exec api alembic upgrade head
+```
+
+*5. Создание суперюзера*
+```bash
+docker compose exec api python -m src.cli create-superuser --no-input -e admin@example.com -p "admin"
+```
+
 # API эндпоинты
 **Полная спецификация доступна после запуска сервера в [документации API](http://127.0.0.1:8000/docs)**
 
@@ -89,7 +99,7 @@ pip install pytest-cov
 ```bash
 pytest --cov=src
 ```
-
-
-
-
+**Запуск тестов в контейнере `Docker`:**
+```bash
+docker compose -f docker-compose.tests.yml --profile test run --rm api-tests
+```
