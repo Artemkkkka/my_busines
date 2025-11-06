@@ -11,6 +11,7 @@ from src.models.admin import TaskCommentAdmin
 from src.models.admin import TeamAdmin
 
 from .config import settings
+from .const import API_VERSION
 from src.auth.backend import auth_backend
 from src.auth.users import fastapi_users
 from src.auth.schemas import UserRead, UserUpdate, UserCreate
@@ -48,44 +49,49 @@ def calendar(request: Request):
 
 app.include_router(
     teams_router,
+    prefix=API_VERSION,
 )
 app.include_router(
     tasks_router,
+    prefix=API_VERSION,
 )
 app.include_router(
     evaluation_router,
+    prefix=API_VERSION,
 )
 app.include_router(
     meetings_router,
+    prefix=API_VERSION,
 )
 app.include_router(
     fastapi_users.get_auth_router(auth_backend),
-    prefix="/auth",
+    prefix=f"/{API_VERSION}/auth",
     tags=["auth"],
 )
 app.include_router(
     fastapi_users.get_register_router(UserRead, UserCreate),
-    prefix="/auth",
+    prefix=f"/{API_VERSION}/auth",
     tags=["auth"],
 )
 app.include_router(
     fastapi_users.get_reset_password_router(),
-    prefix="/auth",
+    prefix=f"/{API_VERSION}/auth",
     tags=["auth"],
 )
 
 app.include_router(
     fastapi_users.get_users_router(UserRead, UserUpdate),
-    prefix="/users",
+    prefix=f"/{API_VERSION}/users",
     tags=["users"],
 )
 app.include_router(
     users_router,
-    prefix="/my-users",
+    prefix=f"/{API_VERSION}/my-users",
     tags=["users"],
 )
 app.include_router(
     superuser_router,
+    prefix=API_VERSION,
 )
 
 admin = Admin(app, db_helper.engine)
