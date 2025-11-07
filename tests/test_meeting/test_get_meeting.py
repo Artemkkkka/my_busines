@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 
+from fastapi import HTTPException
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -96,5 +97,6 @@ async def test_get_meeting_returns_object_or_none(session: AsyncSession):
     found = await MeetingCRUD.get_meeting(m.id, session)
     assert found is not None and found.id == m.id
 
-    missing = await MeetingCRUD.get_meeting(m.id + 999, session)
-    assert missing is None
+    with pytest.raises(HTTPException) as ex:
+        await MeetingCRUD.get_meeting(m.id + 999, session)
+    assert ex.value.status_code == 404

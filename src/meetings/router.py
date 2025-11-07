@@ -3,8 +3,9 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from .validators import _validate_times
 from src.core.dependencies import CurrentUser, SessionDep
-from src.evaluations.permissions import forbid_employee, require_team_admin_or_superuser
+from src.evaluations.permissions import forbid_employee
 from src.users.models import User
 from src.meetings.checks.check_time import ensure_no_overlap
 from src.meetings.crud import MeetingCRUD
@@ -13,12 +14,6 @@ from src.meetings.schemas import MeetingCreate, MeetingUpdate, MeetingOut
 
 crud = MeetingCRUD()
 meetings_router = APIRouter(prefix="/meetings", tags=["meetings"])
-
-
-async def _validate_times(starts_at: Optional[datetime], ends_at: Optional[datetime]) -> None:
-    if starts_at is not None and ends_at is not None:
-        if ends_at <= starts_at:
-            raise HTTPException(status_code=400, detail="ends_at must be after starts_at")
 
 
 @meetings_router.post("", response_model=MeetingOut, status_code=status.HTTP_201_CREATED)

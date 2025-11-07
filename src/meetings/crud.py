@@ -1,8 +1,9 @@
 from datetime import datetime
 
-from fastapi import HTTPException
-from sqlalchemy import select, and_
+from fastapi import status, HTTPException
+from sqlalchemy import func, select, and_
 from sqlalchemy.orm import selectinload
+from sqlalchemy.exc import IntegrityError
 
 from src.users.models import User
 from src.meetings.models import Meeting, MeetingStatus
@@ -25,10 +26,28 @@ class MeetingCRUD:
             ends_at=payload.ends_at,
             status=MeetingStatus.scheduled,
         )
-        session.add(obj)
-        await session.commit()
-        await session.refresh(obj)
-        return obj
+        try:
+            conflict = await session.scalar(
+                select(Meeting.id).where(
+                    Meeting.team_id == user.team_id,
+                    Meeting.status == MeetingStatus.scheduled,
+                    func.lower(Meeting.title) == func.lower(payload.title),
+                )
+            )
+            if conflict:
+                raise HTTPException(status_code=409, detail="Meeting title already exists for this team")
+            session.add(obj)
+            await session.commit()
+            await session.refresh(obj)
+            return obj
+        except HTTPException:
+            raise
+        except IntegrityError as e:
+            await session.rollback()
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Integrity error") from e
+        except Exception:
+            await session.rollback()
+            raise
 
     @staticmethod
     async def get_meetings_by_date(
@@ -99,8 +118,11 @@ class MeetingCRUD:
     async def get_meeting(
         meeting_id: int,
         session: AsyncSession,
-    ) -> Meeting | None:
-        return await session.get(Meeting, meeting_id)
+    ) -> Meeting:
+        obj = await session.get(Meeting, meeting_id)
+        if not obj:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Meeting not found")
+        return obj
 
     @staticmethod
     async def update_meeting(
@@ -110,18 +132,39 @@ class MeetingCRUD:
     ) -> Meeting:
         obj = await session.get(Meeting, meeting_id)
         if not obj:
-            raise HTTPException(status_code=404, detail="Meeting not found")
-
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Meeting not found")
         data = payload.model_dump(exclude_unset=True)
+        if "title" in data:
+            new_title = data["title"]
+            conflict = await session.scalar(
+                select(Meeting.id).where(
+                    Meeting.team_id == obj.team_id,
+                    Meeting.id != meeting_id,
+                    Meeting.status == MeetingStatus.scheduled,
+                    func.lower(Meeting.title) == func.lower(new_title),
+                )
+            )
+            if conflict:
+                raise HTTPException(status_code=409, detail="Meeting title already exists for this team")
+            obj.title = new_title
         for k, v in data.items():
             setattr(obj, k, v)
 
         if "ends_at" in data and data["ends_at"] is not None:
             obj.status = MeetingStatus.canceled
 
-        await session.commit()
-        await session.refresh(obj)
-        return obj
+        try:
+            await session.commit()
+            await session.refresh(obj)
+            return obj
+        except HTTPException:
+            raise
+        except IntegrityError as e:
+            await session.rollback()
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Integrity error") from e
+        except Exception:
+            await session.rollback()
+            raise
 
     @staticmethod
     async def delete_meeting(
@@ -130,6 +173,15 @@ class MeetingCRUD:
     ) -> None:
         obj = await session.get(Meeting, meeting_id)
         if not obj:
-            raise HTTPException(status_code=404, detail="Meeting not found")
-        await session.delete(obj)
-        await session.commit()
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Meeting not found")
+        try:
+            await session.delete(obj)
+            await session.commit()
+        except HTTPException:
+            raise
+        except IntegrityError as e:
+            await session.rollback()
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Integrity error") from e
+        except Exception:
+            await session.rollback()
+            raise

@@ -19,11 +19,3 @@ async def _get_team_or_404(session: AsyncSession, team_id: int) -> Team:
     if not team:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     return team
-
-async def _get_task_or_404(session: AsyncSession, team_id: int, task_id: int) -> Task:
-    task = await session.scalar(
-        select(Task).where(Task.id == task_id, Task.team_id == team_id)
-    )
-    if task is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
-    return task
