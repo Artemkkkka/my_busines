@@ -49,49 +49,49 @@ def calendar(request: Request):
 
 app.include_router(
     teams_router,
-    prefix=API_VERSION,
+    # prefix=API_VERSION,
 )
 app.include_router(
     tasks_router,
-    prefix=API_VERSION,
+    # prefix=API_VERSION,
 )
 app.include_router(
     evaluation_router,
-    prefix=API_VERSION,
+    # prefix=API_VERSION,
 )
 app.include_router(
     meetings_router,
-    prefix=API_VERSION,
+    # prefix=API_VERSION,
 )
 app.include_router(
     fastapi_users.get_auth_router(auth_backend),
-    prefix=f"/{API_VERSION}/auth",
+    prefix="/auth",
     tags=["auth"],
 )
 app.include_router(
     fastapi_users.get_register_router(UserRead, UserCreate),
-    prefix=f"/{API_VERSION}/auth",
+    prefix="/auth",
     tags=["auth"],
 )
 app.include_router(
     fastapi_users.get_reset_password_router(),
-    prefix=f"/{API_VERSION}/auth",
+    prefix="/auth",
     tags=["auth"],
 )
 
 app.include_router(
     fastapi_users.get_users_router(UserRead, UserUpdate),
-    prefix=f"/{API_VERSION}/users",
+    prefix="/users",
     tags=["users"],
 )
 app.include_router(
     users_router,
-    prefix=f"/{API_VERSION}/my-users",
+    prefix="/my-users",
     tags=["users"],
 )
 app.include_router(
     superuser_router,
-    prefix=API_VERSION,
+    # prefix=API_VERSION,
 )
 
 admin = Admin(app, db_helper.engine)

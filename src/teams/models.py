@@ -10,7 +10,8 @@ class Team(Base, TimestampMixin):
         String(255), nullable=False, comment="Название команды"
     )
     owner_id: Mapped[int | None] = mapped_column(
-        ForeignKey('user.id'), comment="ID владельца команды (опционально)"
+        ForeignKey('user.id'),
+        comment="ID владельца команды (опционально)",
     )
     owner: Mapped["User"] = relationship(
         foreign_keys="Team.owner_id",

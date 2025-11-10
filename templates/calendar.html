@@ -77,11 +77,6 @@
         <div class="row">
           <button id="btnLogin" class="btn primary">Войти</button>
         </div>
-        <div class="grid grid-2">
-        </div>
-        <div>
-          <button id="btnUseToken" class="btn"></button>
-        </div>
       </div>
     </div>
 
@@ -151,6 +146,7 @@
       baseUrl: "http://127.0.0.1:8000",
       loginEndpoint: "/auth/login", // POST {email,password} -> { token }
       meEndpoint: "/my-users/me-team",       // GET -> { team_id, ... }
+      userInfoEndpoint: "/users/me",
       tokenStorageKey: "calendar_token",
       teamIdStorageKey: "calendar_team_id"
     };
@@ -185,16 +181,55 @@
 
     /*********************** Загрузка ***********************/
     async function loadAll(){
-      if(!state.authToken || !state.teamId){ renderAuthNeeded(); return; }
-      setStatus('Загрузка…'); hideError();
+      if(!state.authToken){ 
+        renderAuthNeeded(); 
+        return; 
+      }
+      
+      // Для обычных пользователей показываем "Загрузка..."
+      if (state.teamId) {
+        setStatus('Загрузка…');
+      }
+      hideError();
+      
       try{
-        const [tasks, meetings] = await Promise.all([
-          apiGet(urlTasksList()),
-          apiGet(urlMeetingsTeam())
-        ]);
-        state.tasks = tasks || []; state.meetings = meetings || [];
-        setStatus(`Загружено: задач ${state.tasks.length}, встреч ${state.meetings.length}`);
-      }catch(e){ showError(String(e.message||e)); setStatus('Ошибка загрузки'); }
+        let tasks = [];
+        let meetings = [];
+        
+        // Загружаем встречи для всех аутентифицированных пользователей
+        try {
+          meetings = await apiGet(urlMeetingsTeam()) || [];
+        } catch(e) {
+          console.log('No access to meetings:', e);
+        }
+        
+        // Загружаем задачи только если есть teamId (не для суперпользователей)
+        if(state.teamId){
+          try {
+            tasks = await apiGet(urlTasksList()) || [];
+          } catch(e) {
+            console.log('No access to tasks:', e);
+          }
+        }
+        
+        state.tasks = tasks || []; 
+        state.meetings = meetings || [];
+        
+        // Обновляем статус только для обычных пользователей
+        if(state.teamId) {
+          setStatus(`Загружено: задач ${state.tasks.length}, встреч ${state.meetings.length}`);
+        }
+        // Для суперпользователя статус остается "Аве, Цезарь..."
+        
+      } catch(e){ 
+        showError(String(e.message||e)); 
+        if(state.teamId) {
+          setStatus('Ошибка загрузки');
+        } else {
+          setStatus('Ошибка загрузки данных');
+        }
+      }
+      
       renderViews();
     }
 
@@ -257,48 +292,158 @@
     }
 
     async function setAuthAndMaybeTeam(token, teamId){
-      state.authToken = token; localStorage.setItem(CONFIG.tokenStorageKey, token);
-      // Попробуем достать team_id из профиля
-      if(!teamId){
-        try{ const me = await apiGet(CONFIG.baseUrl + CONFIG.meEndpoint); teamId = me.team_id || me.teamId; } catch{ /* игнор */ }
+      state.authToken = token; 
+      localStorage.setItem(CONFIG.tokenStorageKey, token);
+      
+      // Получаем информацию о пользователе
+      let userInfo;
+      try{ 
+        userInfo = await apiGet(CONFIG.baseUrl + CONFIG.meEndpoint);
+        teamId = userInfo.team_id || userInfo.teamId;
+        
+        // Если у пользователя есть команда - обычный пользователь, разрешаем вход
+        if (teamId) {
+          state.teamId = Number(teamId); 
+          localStorage.setItem(CONFIG.teamIdStorageKey, String(state.teamId));
+          $('#loginCard').style.display = 'none';
+          $('#logout').style.display = 'inline-block';
+          setStatus(''); // Очищаем статус
+          await loadAll();
+          return;
+        }
+        
+        // Если команды нет - проверяем, является ли пользователь суперпользователем
+        try {
+          const fullUserInfo = await apiGet(CONFIG.baseUrl + CONFIG.userInfoEndpoint);
+          if (fullUserInfo.is_superuser) {
+            // СУПЕРПОЛЬЗОВАТЕЛЬ - разрешаем вход
+            state.teamId = null; 
+            localStorage.setItem(CONFIG.teamIdStorageKey, 'superuser'); // Помечаем как суперпользователя
+            $('#loginCard').style.display = 'none';
+            $('#logout').style.display = 'inline-block';
+            setStatus('Аве, Цезарь, идущие на смерть приветствуют тебя');
+            await loadAll();
+            return;
+          } else {
+            // ОБЫЧНЫЙ пользователь без команды - ЗАПРЕЩАЕМ вход
+            showError('У вас пока нет команды. Попросите администратора добавить вас в команду.');
+            // Сбрасываем аутентификацию
+            state.authToken = null;
+            localStorage.removeItem(CONFIG.tokenStorageKey);
+            localStorage.removeItem(CONFIG.teamIdStorageKey);
+            return;
+          }
+        } catch (userInfoError) {
+          console.error('Cannot check superuser status:', userInfoError);
+          // Если не можем проверить статус суперпользователя - запрещаем вход
+          showError('Не удалось проверить права доступа. Обратитесь к администратору.');
+          state.authToken = null;
+          localStorage.removeItem(CONFIG.tokenStorageKey);
+          localStorage.removeItem(CONFIG.teamIdStorageKey);
+          return;
+        }
+        
+      } catch(e){ 
+        console.error('Failed to get user profile:', e);
+        showError('Ошибка при получении профиля пользователя');
+        state.authToken = null;
+        localStorage.removeItem(CONFIG.tokenStorageKey);
+        localStorage.removeItem(CONFIG.teamIdStorageKey);
+        return;
       }
-      if(!teamId){ const manual=$('#teamIdInput').value.trim(); if(manual) teamId=Number(manual); }
-      if(!teamId){ showError('Не удалось определить team_id. Укажите его в поле Team ID.'); return; }
-      state.teamId = Number(teamId); localStorage.setItem(CONFIG.teamIdStorageKey, String(state.teamId));
-      $('#loginCard').style.display='none';
-      $('#logout').style.display='inline-block';
-      await loadAll();
     }
 
     function useProvidedToken(){ hideError(); const t=$('#tokenInput').value.trim(); if(!t){ showError('Вставьте токен'); return; } setAuthAndMaybeTeam(t, $('#teamIdInput').value.trim()); }
     function logout(){ 
       localStorage.removeItem(CONFIG.tokenStorageKey);
       localStorage.removeItem(CONFIG.teamIdStorageKey);
-      state.authToken=null; state.teamId=null; state.tasks=[]; state.meetings=[];
+      state.authToken = null; 
+      state.teamId = null; 
+      state.tasks = []; 
+      state.meetings = [];
       setStatus('');
-      $('#logout').style.display='none';
-      renderAuthNeeded(); }
+      $('#logout').style.display = 'none';
+      renderAuthNeeded(); 
+    }
 
     /*********************** Добавление ***********************/
     async function addTask(){
-      if(!state.authToken||!state.teamId){ showError('Сначала войдите'); return; }
-      const name=$('#taskName').value.trim(); const desc=$('#taskDesc').value.trim(); if(!name){ alert('Введите название задачи'); return; }
-      const ymd=toYMD(state.selectedDate); const payload={name, description: desc||null, deadline_at:`${ymd}T00:00:00`};
-      const temp={id:Math.random()*1e9|0,name,description:desc||null,deadline_at:payload.deadline_at}; state.tasks.unshift(temp); renderViews();
-      try{ const created=await apiPost(urlTasksPost(), payload); state.tasks=[created,...state.tasks.filter(t=>t!==temp)]; $('#taskName').value=''; $('#taskDesc').value=''; }
-      catch(e){ state.tasks=state.tasks.filter(t=>t!==temp); showError(String(e.message||e)); }
+      if(!state.authToken){ 
+        showError('Сначала войдите'); 
+        return; 
+      }
+      
+      // Суперпользователи не могут создавать задачи
+      if(!state.teamId) {
+        showError('Суперпользователи не могут создавать задачи без команды');
+        return;
+      }
+      
+      const name=$('#taskName').value.trim(); 
+      const desc=$('#taskDesc').value.trim(); 
+      if(!name){ 
+        alert('Введите название задачи'); 
+        return; 
+      }
+      
+      const ymd=toYMD(state.selectedDate); 
+      const payload={name, description: desc||null, deadline_at:`${ymd}T00:00:00`};
+      const temp={id:Math.random()*1e9|0,name,description:desc||null,deadline_at:payload.deadline_at}; 
+      state.tasks.unshift(temp); 
+      renderViews();
+      
+      try{ 
+        const created=await apiPost(urlTasksPost(), payload); 
+        state.tasks=[created,...state.tasks.filter(t=>t!==temp)]; 
+        $('#taskName').value=''; 
+        $('#taskDesc').value=''; 
+      } catch(e){ 
+        state.tasks=state.tasks.filter(t=>t!==temp); 
+        showError(String(e.message||e)); 
+      }
       renderViews();
     }
     async function addMeeting(){
-      if(!state.authToken||!state.teamId){ showError('Сначала войдите'); return; }
-      const title=$('#meetTitle').value.trim(); if(!title){ alert('Введите заголовок'); return; }
+      if(!state.authToken){ 
+        showError('Сначала войдите'); 
+        return; 
+      }
+      
+      // Суперпользователи не могут создавать встречи
+      if(!state.teamId) {
+        showError('Суперпользователи не могут создавать встречи без команды');
+        return;
+      }
+      
+      const title=$('#meetTitle').value.trim(); 
+      if(!title){ 
+        alert('Введите заголовок'); 
+        return; 
+      }
+      
       const ymd=toYMD(state.selectedDate);
-      const sDate=$('#meetStartDate').value||ymd; const sTime=$('#meetStartTime').value||'09:00';
-      const eDate=$('#meetEndDate').value||ymd; const eTime=$('#meetEndTime').value||'10:00';
+      const sDate=$('#meetStartDate').value||ymd; 
+      const sTime=$('#meetStartTime').value||'09:00';
+      const eDate=$('#meetEndDate').value||ymd; 
+      const eTime=$('#meetEndTime').value||'10:00';
+      
       const payload={title,description:null,starts_at:mkISO(sDate,sTime),ends_at:mkISO(eDate,eTime)};
-      const temp={id:Math.random()*1e9|0,title,description:null,starts_at:payload.starts_at,ends_at:payload.ends_at}; state.meetings.unshift(temp); renderViews();
-      try{ const created=await apiPost(urlMeetingsPost(), payload); state.meetings=[created,...state.meetings.filter(m=>m!==temp)]; $('#meetTitle').value=''; $('#meetStartDate').value=''; $('#meetStartTime').value=''; $('#meetEndDate').value=''; $('#meetEndTime').value=''; }
-      catch(e){ state.meetings=state.meetings.filter(m=>m!==temp); showError(String(e.message||e)); }
+      const temp={id:Math.random()*1e9|0,title,description:null,starts_at:payload.starts_at,ends_at:payload.ends_at}; 
+      state.meetings.unshift(temp); 
+      renderViews();
+      
+      try{ 
+        const created=await apiPost(urlMeetingsPost(), payload); 
+        state.meetings=[created,...state.meetings.filter(m=>m!==temp)]; 
+        $('#meetTitle').value=''; 
+        $('#meetStartDate').value=''; 
+        $('#meetStartTime').value=''; 
+        $('#meetEndDate').value=''; 
+        $('#meetEndTime').value=''; 
+      } catch(e){ 
+        state.meetings=state.meetings.filter(m=>m!==temp); 
+        showError(String(e.message||e)); 
+      }
       renderViews();
     }
 
@@ -314,20 +459,68 @@
     $('#addTask').addEventListener('click', addTask);
     $('#addMeeting').addEventListener('click', addMeeting);
     $('#btnLogin').addEventListener('click', doLogin);
-    $('#btnUseToken').addEventListener('click', useProvidedToken);
     $('#logout').addEventListener('click', logout);
 
     (function start(){
       setView('month');
-      const savedToken=localStorage.getItem(CONFIG.tokenStorageKey);
-      const savedTeamId=localStorage.getItem(CONFIG.teamIdStorageKey);
-      if(savedToken){ state.authToken=savedToken; }
-      if(savedTeamId){ state.teamId=Number(savedTeamId); }
-      $('#logout').style.display = (state.authToken && state.teamId) ? 'inline-block' : 'none';
-      if(state.authToken && state.teamId){ loadAll(); }
-      else { renderAuthNeeded(); }
+      const savedToken = localStorage.getItem(CONFIG.tokenStorageKey);
+      const savedTeamId = localStorage.getItem(CONFIG.teamIdStorageKey);
+      
+      // Полностью сбрасываем состояние
+      state.authToken = null;
+      state.teamId = null;
+      state.tasks = [];
+      state.meetings = [];
+      setStatus('');
+      
+      if(savedToken){ 
+        state.authToken = savedToken; 
+      }
+      
+      if(savedTeamId){ 
+        if (savedTeamId === 'superuser') {
+          state.teamId = null;
+          // Для суперпользователя при перезагрузке нужно заново проверить статус
+          checkSuperuserStatus();
+          return;
+        } else {
+          state.teamId = Number(savedTeamId); 
+        }
+      }
+      
+      $('#logout').style.display = state.authToken ? 'inline-block' : 'none';
+      
+      if(state.authToken && state.teamId){ 
+        loadAll(); 
+      } else if (state.authToken && !state.teamId) {
+        // Если есть токен, но нет teamId - проверяем, суперпользователь ли это
+        checkSuperuserStatus();
+      } else { 
+        renderAuthNeeded(); 
+      }
+      
       $('#currentDate').textContent = formatHuman(state.selectedDate);
     })();
+    async function checkSuperuserStatus() {
+      try {
+        const fullUserInfo = await apiGet(CONFIG.baseUrl + CONFIG.userInfoEndpoint);
+        if (fullUserInfo.is_superuser) {
+          state.teamId = null;
+          $('#loginCard').style.display = 'none';
+          $('#logout').style.display = 'inline-block';
+          setStatus('Аве, Цезарь, идущие на смерть приветствуют тебя');
+          await loadAll();
+        } else {
+          // Обычный пользователь без команды - разлогиниваем
+          showError('У вас нет прав доступа. Обратитесь к администратору.');
+          logout();
+        }
+      } catch (e) {
+        console.error('Failed to check superuser status:', e);
+        showError('Ошибка при проверке прав доступа');
+        logout();
+      }
+    }
   </script>
 </body>
 </html>
