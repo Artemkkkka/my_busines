@@ -2,8 +2,11 @@
 {% block content %}
 <div class="card">
   <h1 style="margin-top:0">Добро пожаловать!</h1>
-  <p>Это стартовая страница.</p>
-  <p>API доступно в <a href="/docs">Swagger</a>.</p>
-  <p><a href="/calendar">Пример календаря</a>.</p>
+  <p>Это стартовая страница системы управления задачами и встречами.</p>
+  <p>API доступно в <a href="/api/v1/docs">Swagger</a>.</p>
+  <div style="margin-top: 20px; display: flex; gap: 12px; flex-wrap: wrap;">
+    <a href="/calendar" style="background: #82aaff; color: #0b1020; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600;">Календарь</a>
+    <a href="/register" style="background: transparent; color: #82aaff; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; border: 1px solid #82aaff;">Регистрация</a>
+  </div>
 </div>
 {% endblock %}

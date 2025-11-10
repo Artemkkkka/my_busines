@@ -3,20 +3,28 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ app_name }}</title>
+    <title>{% block title %}{{ app_name }}{% endblock %}</title>
     <style>
       :root { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
       body { margin: 0; padding: 0; background: #0b1020; color: #eef2ff; }
-      header { padding: 16px 24px; background: #11162a; border-bottom: 1px solid #1f2542; }
+      header { padding: 16px 24px; background: #11162a; border-bottom: 1px solid #1f2542; display: flex; justify-content: space-between; align-items: center; }
       main { padding: 24px; max-width: 960px; margin: 0 auto; }
       .card { background: #0f1631; border: 1px solid #1f2542; border-radius: 14px; padding: 16px 20px; box-shadow: 0 10px 20px rgba(0,0,0,.25); }
-      a { color: #82aaff; }
+      a { color: #82aaff; text-decoration: none; }
+      a:hover { text-decoration: underline; }
       code { background: #11162a; padding: 2px 6px; border-radius: 6px; }
+      .nav-links { display: flex; gap: 16px; }
+      .nav-links a { color: #eef2ff; }
     </style>
   </head>
   <body>
     <header>
-      <strong>{{ app_name }}</strong>
+      <strong><a href="/" style="color: #eef2ff; text-decoration: none;">{{ app_name }}</a></strong>
+      <div class="nav-links">
+        <a href="/calendar">Календарь</a>
+        <a href="/register">Регистрация</a>
+        <a href="/api/v1/docs">API</a>
+      </div>
     </header>
     <main>
       {% block content %}{% endblock %}

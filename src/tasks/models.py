@@ -43,7 +43,7 @@ class Task(Base, TimestampMixin):
     )
 
     author_id: Mapped[int] = mapped_column(
-        ForeignKey("user.id", ondelete="RESTRICT"), nullable=False,
+        ForeignKey("user.id", ondelete="SET NULL"), nullable=True,
         comment="ID пользователя — автора задачи"
     )
     assignee_id: Mapped[int] = mapped_column(
@@ -85,7 +85,7 @@ class TaskComment(Base, TimestampMixin,):
         comment="ID связанной задачи"
     )
     author_id: Mapped[int] = mapped_column(
-        ForeignKey("user.id", ondelete="RESTRICT"), nullable=False,
+        ForeignKey("user.id", ondelete="SET NULL"), nullable=True,
         comment="ID пользователя — автора комментария"
     )
 

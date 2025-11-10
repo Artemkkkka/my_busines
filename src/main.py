@@ -26,7 +26,11 @@ from sqladmin import Admin
 from src.database import db_helper
 
 
-app = FastAPI()
+app = FastAPI(
+    openapi_url=f"{API_PREFIX}/openapi.json",
+    docs_url=f"{API_PREFIX}/docs",
+    redoc_url=f"{API_PREFIX}/redoc",
+)
 
 templates = Jinja2Templates(directory="templates")
 
@@ -35,7 +39,21 @@ templates = Jinja2Templates(directory="templates")
 def index(request: Request):
     return templates.TemplateResponse(
         "index.html",
-        {"request": request}
+        {
+            "request": request,
+            "app_name": "Календарь"
+        }
+    )
+
+
+@app.get("/register", response_class=HTMLResponse)
+def register_page(request: Request):
+    return templates.TemplateResponse(
+        "register.html",
+        {
+            "request": request,
+            "app_name": "Календарь"
+        }
     )
 
 
@@ -43,7 +61,10 @@ def index(request: Request):
 def calendar(request: Request):
     return templates.TemplateResponse(
         "calendar.html",
-        {"request": request}
+        {
+            "request": request,
+            "app_name": "Календарь"
+        }
     )
 
 

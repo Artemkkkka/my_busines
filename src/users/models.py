@@ -29,7 +29,7 @@ class User(Base, TimestampMixin, SQLAlchemyBaseUserTable[int]):
     )
 
     team_id: Mapped[int] = mapped_column(
-        ForeignKey("team.id"),
+        ForeignKey("team.id", ondelete="SET NULL"),
         nullable=True,
         comment="Идентификатор команды пользователя (FK на team.id)"
     )

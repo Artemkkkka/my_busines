@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Регистрация - {{ app_name }}</title>
+    <style>
+      :root { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
+      body { margin: 0; padding: 0; background: #0b1020; color: #eef2ff; }
+      header { padding: 16px 24px; background: #11162a; border-bottom: 1px solid #1f2542; }
+      main { padding: 24px; max-width: 400px; margin: 0 auto; }
+      .card { background: #0f1631; border: 1px solid #1f2542; border-radius: 14px; padding: 20px; box-shadow: 0 10px 20px rgba(0,0,0,.25); }
+      .form-group { margin-bottom: 16px; }
+      label { display: block; margin-bottom: 6px; font-size: 14px; color: #a5b4fc; }
+      input { width: 100%; padding: 10px 12px; background: #1a1f3c; border: 1px solid #2a2f4c; border-radius: 8px; color: #eef2ff; font-size: 14px; box-sizing: border-box; }
+      input:focus { outline: none; border-color: #82aaff; }
+      .btn { background: #82aaff; color: #0b1020; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; width: 100%; font-size: 14px; }
+      .btn:hover { background: #6d9bff; }
+      .btn-secondary { background: transparent; color: #82aaff; border: 1px solid #82aaff; }
+      .btn-secondary:hover { background: rgba(130, 170, 255, 0.1); }
+      .error { background: #ff5555; color: white; padding: 10px; border-radius: 8px; margin-bottom: 16px; display: none; }
+      .success { background: #50fa7b; color: #0b1020; padding: 10px; border-radius: 8px; margin-bottom: 16px; display: none; }
+      .links { margin-top: 20px; text-align: center; font-size: 14px; }
+      a { color: #82aaff; text-decoration: none; }
+      a:hover { text-decoration: underline; }
+      h1 { margin-top: 0; text-align: center; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <strong><a href="/" style="color: #eef2ff; text-decoration: none;">{{ app_name }}</a></strong>
+    </header>
+    <main>
+      <div class="card">
+        <h1>Регистрация</h1>
+        
+        <div id="error" class="error"></div>
+        <div id="success" class="success"></div>
+        
+        <form id="registerForm">
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" placeholder="you@example.com" required>
+          </div>
+          
+          <div class="form-group">
+            <label for="password">Пароль</label>
+            <input type="password" id="password" name="password" placeholder="••••••••" required minlength="6">
+          </div>
+          
+          <div class="form-group">
+            <label for="password_confirm">Подтверждение пароля</label>
+            <input type="password" id="password_confirm" name="password_confirm" placeholder="••••••••" required>
+          </div>
+          
+          <button type="submit" class="btn">Зарегистрироваться</button>
+        </form>
+        
+        <div class="links">
+          Уже есть аккаунт? <a href="/calendar">Войти</a>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      document.getElementById('registerForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const passwordConfirm = document.getElementById('password_confirm').value;
+        const errorDiv = document.getElementById('error');
+        const successDiv = document.getElementById('success');
+        
+        // Скрыть предыдущие сообщения
+        errorDiv.style.display = 'none';
+        successDiv.style.display = 'none';
+        
+        // Валидация
+        if (password !== passwordConfirm) {
+          errorDiv.textContent = 'Пароли не совпадают';
+          errorDiv.style.display = 'block';
+          return;
+        }
+        
+        if (password.length < 6) {
+          errorDiv.textContent = 'Пароль должен содержать минимум 6 символов';
+          errorDiv.style.display = 'block';
+          return;
+        }
+        
+        try {
+          const response = await fetch('/api/v1/auth/register', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              email: email,
+              password: password,
+            }),
+          });
+          
+          if (response.ok) {
+            successDiv.textContent = 'Регистрация успешна! Теперь вы можете войти в систему.';
+            successDiv.style.display = 'block';
+            document.getElementById('registerForm').reset();
+            
+            // Перенаправление на страницу входа через 2 секунды
+            setTimeout(() => {
+              window.location.href = '/calendar';
+            }, 2000);
+          } else {
+            const data = await response.json();
+            errorDiv.textContent = data.detail || 'Ошибка регистрации';
+            errorDiv.style.display = 'block';
+          }
+        } catch (error) {
+          errorDiv.textContent = 'Ошибка сети. Попробуйте позже.';
+          errorDiv.style.display = 'block';
+        }
+      });
+    </script>
+  </body>
+</html>
