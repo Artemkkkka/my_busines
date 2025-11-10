@@ -143,9 +143,9 @@
      * Настройки (под себя)
      ***********************/
     const CONFIG = {
-      baseUrl: "http://127.0.0.1:8000",
-      loginEndpoint: "/auth/login", // POST {email,password} -> { token }
-      meEndpoint: "/my-users/me-team",       // GET -> { team_id, ... }
+      baseUrl: "http://127.0.0.1:8000/api/v1",
+      loginEndpoint: "/auth/login",
+      meEndpoint: "/my-users/me-team",
       userInfoEndpoint: "/users/me",
       tokenStorageKey: "calendar_token",
       teamIdStorageKey: "calendar_team_id"
