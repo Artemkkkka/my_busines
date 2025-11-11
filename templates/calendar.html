@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Календарь: месяц/день + задачи и встречи (HTML)</title>
+  <title>Календарь: месяц/день + задачи и встречи</title>
   <style>
     :root{ --bg:#fff; --ink:#111; --muted:#6b7280; --line:#e5e7eb; --chip:#f3f4f6; --accent:#111; --accent-ink:#fff; --bad:#b00020; }
     html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
@@ -18,6 +18,7 @@
     .card{border:1px solid var(--line);border-radius:14px;padding:12px;background:#fff}
     .muted{color:var(--muted)}
     .error{background:#ffe8ec;border:1px solid #ffd1d9;color:#7a0017;padding:8px 10px;border-radius:10px}
+    .access-notice{background:#fef3cd;border:1px solid #fde68a;color:#92400e;padding:12px;border-radius:10px;margin:12px 0}
 
     /* таблицы */
     table{width:100%;border-collapse:collapse}
@@ -43,7 +44,7 @@
       <h1>Календарь</h1>
       <span class="muted">месячный/дневной вид и быстрое добавление</span>
       <div class="spacer"></div>
-      <button id="btnMonth" class="btn">Месяц</button>
+      <button id="btnMonth" class="btn primary">Месяц</button>
       <button id="btnDay" class="btn">День</button>
     </div>
 
@@ -81,7 +82,7 @@
     </div>
 
     <!-- Быстрые формы -->
-    <div class="row" style="margin-bottom:12px">
+    <div id="quickForms" class="row" style="margin-bottom:12px">
       <div class="card" style="flex:1; min-width:280px">
         <div style="font-weight:600; margin-bottom:8px">Быстро добавить задачу (на выбранную дату)</div>
         <div class="grid">
@@ -132,8 +133,9 @@
         </div>
       </div>
     </div>
-    <div style="margin-top: 12px; font-size: 14px; text-align: center;">
-      Нет аккаунта? <a href="/register">Зарегистрироваться</a>
+
+    <div id="registerPrompt" style="margin-top: 12px; font-size: 14px; text-align: center;">
+        Нет аккаунта? <a href="/register">Зарегистрироваться</a>
     </div>
 
     <!-- Представления -->
@@ -142,9 +144,7 @@
   </div>
 
   <script>
-    /***********************
-     * Настройки (под себя)
-     ***********************/
+    // Конфигурация
     const CONFIG = {
       baseUrl: "http://127.0.0.1:8000/api/v1",
       loginEndpoint: "/auth/login",
@@ -154,7 +154,7 @@
       teamIdStorageKey: "calendar_team_id"
     };
 
-    /*********************** Утилиты ***********************/
+    // Утилиты
     const $ = (s) => document.querySelector(s);
     const pad = (n) => String(n).padStart(2, '0');
     function toYMD(d){ return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`; }
@@ -165,7 +165,7 @@
     function formatHuman(d){ return new Intl.DateTimeFormat('ru-RU',{year:'numeric',month:'long',day:'2-digit'}).format(d); }
     function escapeHtml(str){ return String(str).replace(/[&<>"']/g, s=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[s])); }
 
-    /*********************** API ***********************/
+    // API функции
     function authHeaders(){ const t=state.authToken||localStorage.getItem(CONFIG.tokenStorageKey)||""; const h={'Content-Type':'application/json'}; if(t) h['Authorization']=`Bearer ${t}`; return h; }
     function urlTasksList(){ return `${CONFIG.baseUrl}/teams/${state.teamId}/tasks`; }
     function urlTasksPost(){ return `${CONFIG.baseUrl}/teams/${state.teamId}/tasks/`; }
@@ -175,38 +175,48 @@
     async function apiGet(url){ const r=await fetch(url,{headers:authHeaders()}); if(!r.ok) throw new Error(`GET ${url} → ${r.status}`); return r.json(); }
     async function apiPost(url, body){ const r=await fetch(url,{method:'POST',headers:authHeaders(),body:JSON.stringify(body)}); if(!r.ok){const t=await r.text(); throw new Error(`POST ${url} → ${r.status}: ${t}`);} return r.json(); }
 
-    /*********************** Состояние ***********************/
+    // Состояние
     const state = {
       view:'month',
       selectedDate:(()=>{const n=new Date();return new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),n.getUTCDate()));})(),
-      tasks:[], meetings:[], authToken:null, teamId:null
+      tasks:[], meetings:[], authToken:null, teamId:null,
+      userRole: null
     };
 
-    /*********************** Загрузка ***********************/
+    // Проверка прав доступа
+    function canUserCreate() {
+      // Суперпользователь без команды не может создавать
+      if (!state.teamId) return false;
+      // Employee не может создавать
+      if (state.userRole === 'employee') return false;
+      return true;
+    }
+
+    function updateUIBasedOnPermissions() {
+      const canCreate = canUserCreate();
+      $('#quickForms').style.display = canCreate ? 'flex' : 'none';
+    }
+
+    // Загрузка данных
     async function loadAll(){
       if(!state.authToken){ 
         renderAuthNeeded(); 
         return; 
       }
       
-      // Для обычных пользователей показываем "Загрузка..."
-      if (state.teamId) {
-        setStatus('Загрузка…');
-      }
+      if (state.teamId) setStatus('Загрузка…');
       hideError();
       
       try{
         let tasks = [];
         let meetings = [];
         
-        // Загружаем встречи для всех аутентифицированных пользователей
         try {
           meetings = await apiGet(urlMeetingsTeam()) || [];
         } catch(e) {
           console.log('No access to meetings:', e);
         }
         
-        // Загружаем задачи только если есть teamId (не для суперпользователей)
         if(state.teamId){
           try {
             tasks = await apiGet(urlTasksList()) || [];
@@ -218,150 +228,185 @@
         state.tasks = tasks || []; 
         state.meetings = meetings || [];
         
-        // Обновляем статус только для обычных пользователей
         if(state.teamId) {
           setStatus(`Загружено: задач ${state.tasks.length}, встреч ${state.meetings.length}`);
         }
-        // Для суперпользователя статус остается "Аве, Цезарь..."
         
       } catch(e){ 
         showError(String(e.message||e)); 
-        if(state.teamId) {
-          setStatus('Ошибка загрузки');
-        } else {
-          setStatus('Ошибка загрузки данных');
-        }
+        if(state.teamId) setStatus('Ошибка загрузки');
       }
       
       renderViews();
     }
 
-    /*********************** Рендер: месяц/день ***********************/
+    // Рендер календаря
     function buildMonthMatrix(current){
       const first = startOfMonth(current);
-      const firstWeekday = (first.getUTCDay()+6)%7; // пн=0
+      const firstWeekday = (first.getUTCDay()+6)%7;
       const firstCell = addDays(first, -firstWeekday);
-      const rows=[]; for(let w=0;w<6;w++){ const row=[]; for(let d=0;d<7;d++) row.push(addDays(firstCell,w*7+d)); rows.push(row);} return rows;
+      const rows=[];
+      for(let w=0;w<6;w++){ 
+        const row=[]; 
+        for(let d=0;d<7;d++) row.push(addDays(firstCell,w*7+d)); 
+        rows.push(row);
+      }
+      return rows;
     }
+
     function renderMonth(){
-      const cont = $('#monthView'); const m = state.selectedDate.getUTCMonth(); const rows = buildMonthMatrix(state.selectedDate);
+      const cont = $('#monthView'); 
+      const m = state.selectedDate.getUTCMonth(); 
+      const rows = buildMonthMatrix(state.selectedDate);
       const weekHdr = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(h=>`<th>${h}</th>`).join('');
+      
       let html = `<table><thead><tr>${weekHdr}</tr></thead><tbody>`;
-      for(const row of rows){ html += '<tr>'; for(const date of row){ const ymd=toYMD(date); const dim = (date.getUTCMonth()!==m)?'cell-dim':''; const dayTasks=state.tasks.filter(t=>(t.deadline_at||'').startsWith(ymd)); const dayMeets=state.meetings.filter(mm=>(mm.starts_at||'').startsWith(ymd)||(mm.ends_at||'').startsWith(ymd)); const count=dayTasks.length+dayMeets.length; const items=[...dayTasks.slice(0,3).map(t=>`<div class="truncate">🗒️ ${escapeHtml(t.name||'')}</div>`), ...dayMeets.slice(0,3).map(mm=>`<div class="truncate">📅 ${escapeHtml(mm.title||'')}</div>`)].join(''); const more=count>3?`<div class="muted" style="font-size:12px">ещё ${count-3}…</div>`:''; html += `<td class="${dim}" data-ymd="${ymd}"><div class="cell-head"><span>${date.getUTCDate()}</span><span class="pill">${count}</span></div><div class="list">${items}${more}</div></td>`; } html += '</tr>'; }
+      for(const row of rows){ 
+        html += '<tr>'; 
+        for(const date of row){ 
+          const ymd=toYMD(date); 
+          const dim = (date.getUTCMonth()!==m)?'cell-dim':'';
+          const dayTasks=state.tasks.filter(t=>(t.deadline_at||'').startsWith(ymd));
+          const dayMeets=state.meetings.filter(mm=>(mm.starts_at||'').startsWith(ymd)||(mm.ends_at||'').startsWith(ymd));
+          const count=dayTasks.length+dayMeets.length;
+          const items=[...dayTasks.slice(0,3).map(t=>`<div class="truncate">🗒️ ${escapeHtml(t.name||'')}</div>`), ...dayMeets.slice(0,3).map(mm=>`<div class="truncate">📅 ${escapeHtml(mm.title||'')}</div>`)].join('');
+          const more=count>3?`<div class="muted" style="font-size:12px">ещё ${count-3}…</div>`:'';
+          html += `<td class="${dim}" data-ymd="${ymd}"><div class="cell-head"><span>${date.getUTCDate()}</span><span class="pill">${count}</span></div><div class="list">${items}${more}</div></td>`;
+        } 
+        html += '</tr>'; 
+      }
       html += '</tbody></table>';
       cont.innerHTML = html;
-      cont.querySelectorAll('td[data-ymd]').forEach(td=> td.addEventListener('click',()=>{ state.selectedDate = ymdToDate(td.getAttribute('data-ymd')); setView('day'); renderViews(); }));
+      cont.querySelectorAll('td[data-ymd]').forEach(td=> td.addEventListener('click',()=>{ 
+        state.selectedDate = ymdToDate(td.getAttribute('data-ymd')); 
+        setView('day'); 
+        renderViews(); 
+      }));
     }
+
     function renderDay(){
-      const cont=$('#dayView'); const ymd=toYMD(state.selectedDate);
+      const cont=$('#dayView'); 
+      const ymd=toYMD(state.selectedDate);
       const meetings = state.meetings.filter(m=>(m.starts_at||'').startsWith(ymd)||(m.ends_at||'').startsWith(ymd)).sort((a,b)=>String(a.starts_at).localeCompare(String(b.starts_at)));
       const tasks = state.tasks.filter(t=>(t.deadline_at||'').startsWith(ymd));
+      
       let html = `<table><thead><tr><th style="width:120px">Дата</th><th>Тип</th><th style="width:160px">Время / Дедлайн</th><th>Название</th><th>Описание</th></tr></thead><tbody>`;
-      for(const m of meetings){ html += `<tr><td>${ymd}</td><td>Встреча</td><td>${(m.starts_at||'').slice(11,16)}–${(m.ends_at||'').slice(11,16)}</td><td><b>${escapeHtml(m.title||'')}</b></td><td class="muted">${escapeHtml(m.description||'—')}</td></tr>`; }
-      for(const t of tasks){ html += `<tr><td>${ymd}</td><td>Задача</td><td>дедлайн ${((t.deadline_at||'').slice(11,16))||'—'}</td><td><b>${escapeHtml(t.name||'')}</b></td><td class="muted">${escapeHtml(t.description||'—')}</td></tr>`; }
-      if(meetings.length===0 && tasks.length===0){ html += `<tr><td colspan="5" class="muted" style="text-align:center; padding:18px">На этот день ничего нет</td></tr>`; }
+      for(const m of meetings){ 
+        html += `<tr><td>${ymd}</td><td>Встреча</td><td>${(m.starts_at||'').slice(11,16)}–${(m.ends_at||'').slice(11,16)}</td><td><b>${escapeHtml(m.title||'')}</b></td><td class="muted">${escapeHtml(m.description||'—')}</td></tr>`; 
+      }
+      for(const t of tasks){ 
+        html += `<tr><td>${ymd}</td><td>Задача</td><td>дедлайн ${((t.deadline_at||'').slice(11,16))||'—'}</td><td><b>${escapeHtml(t.name||'')}</b></td><td class="muted">${escapeHtml(t.description||'—')}</td></tr>`; 
+      }
+      if(meetings.length===0 && tasks.length===0){ 
+        html += `<tr><td colspan="5" class="muted" style="text-align:center; padding:18px">На этот день ничего нет</td></tr>`; 
+      }
       html += '</tbody></table>';
       cont.innerHTML = html;
     }
 
-    function renderViews(){ $('#currentDate').textContent = formatHuman(state.selectedDate); if(state.view==='month') { $('#monthView').style.display='block'; $('#dayView').style.display='none'; renderMonth(); } else { $('#monthView').style.display='none'; $('#dayView').style.display='block'; renderDay(); } }
+    function renderViews(){ 
+      $('#currentDate').textContent = formatHuman(state.selectedDate); 
+      if(state.view==='month') { 
+        $('#monthView').style.display='block'; 
+        $('#dayView').style.display='none'; 
+        renderMonth(); 
+      } else { 
+        $('#monthView').style.display='none'; 
+        $('#dayView').style.display='block'; 
+        renderDay(); 
+      } 
+    }
 
-    /*********************** Аутентификация ***********************/
+    // Аутентификация
     function setStatus(t){ $('#status').textContent=t||''; }
     function showError(t){ const el=$('#err'); el.textContent=t; el.style.display='block'; }
     function hideError(){ $('#err').style.display='none'; }
     function renderAuthNeeded(){ 
       $('#loginCard').style.display='block';
+      $('#registerPrompt').style.display='block'; // Добавляем эту строку
       $('#monthView').style.display='none';
       $('#dayView').style.display='none';
       $('#logout').style.display='none';
+      $('#quickForms').style.display='none';
     }
 
     async function doLogin(){
       hideError();
-      const email=$('#loginEmail').value.trim(); const password=$('#loginPassword').value.trim();
-      if(!email||!password){ showError('Введите email и пароль или вставьте токен ниже'); return; }
+      const email=$('#loginEmail').value.trim(); 
+      const password=$('#loginPassword').value.trim();
+      if(!email||!password){ showError('Введите email и пароль'); return; }
+      
       try{
         const url = CONFIG.baseUrl + CONFIG.loginEndpoint;
-        // Сервер ожидает OAuth2PasswordRequestForm: application/x-www-form-urlencoded с полями username, password
         const body = new URLSearchParams({ username: email, password });
         const res = await fetch(url, { method:'POST', headers:{ 'Content-Type':'application/x-www-form-urlencoded' }, body });
         if(!res.ok){ const t=await res.text(); throw new Error(`Вход не удался: ${res.status} ${t}`); }
         const data = await res.json();
         const token = data.token || data.access_token || data.accessToken;
         if(!token) throw new Error('Сервер не вернул токен');
-        await setAuthAndMaybeTeam(token, data.team_id || data.teamId);
+        await setAuthAndTeam(token);
       }catch(e){ showError(String(e.message||e)); }
     }
 
-    async function setAuthAndMaybeTeam(token, teamId){
+    async function setAuthAndTeam(token){
       state.authToken = token; 
       localStorage.setItem(CONFIG.tokenStorageKey, token);
       
-      // Получаем информацию о пользователе
-      let userInfo;
       try{ 
-        userInfo = await apiGet(CONFIG.baseUrl + CONFIG.meEndpoint);
-        teamId = userInfo.team_id || userInfo.teamId;
+        const userInfo = await apiGet(CONFIG.baseUrl + CONFIG.meEndpoint);
+        const teamId = userInfo.team_id || userInfo.teamId;
+        state.userRole = userInfo.role_in_team;
         
-        // Если у пользователя есть команда - обычный пользователь, разрешаем вход
-        if (teamId) {
+        if(teamId){
           state.teamId = Number(teamId); 
           localStorage.setItem(CONFIG.teamIdStorageKey, String(state.teamId));
           $('#loginCard').style.display = 'none';
+          $('#registerPrompt').style.display = 'none'; // Добавляем эту строку
           $('#logout').style.display = 'inline-block';
-          setStatus(''); // Очищаем статус
+          setStatus('');
+          updateUIBasedOnPermissions();
           await loadAll();
           return;
         }
         
-        // Если команды нет - проверяем, является ли пользователь суперпользователем
+        // Проверка суперпользователя
         try {
           const fullUserInfo = await apiGet(CONFIG.baseUrl + CONFIG.userInfoEndpoint);
           if (fullUserInfo.is_superuser) {
-            // СУПЕРПОЛЬЗОВАТЕЛЬ - разрешаем вход
-            state.teamId = null; 
-            localStorage.setItem(CONFIG.teamIdStorageKey, 'superuser'); // Помечаем как суперпользователя
+            state.teamId = null;
+            state.userRole = null;
+            localStorage.setItem(CONFIG.teamIdStorageKey, 'superuser');
             $('#loginCard').style.display = 'none';
             $('#logout').style.display = 'inline-block';
-            setStatus('Аве, Цезарь, идущие на смерть приветствуют тебя');
+            setStatus('Суперпользователь');
+            updateUIBasedOnPermissions();
             await loadAll();
             return;
           } else {
-            // ОБЫЧНЫЙ пользователь без команды - ЗАПРЕЩАЕМ вход
-            showError('У вас пока нет команды. Попросите администратора добавить вас в команду.');
-            // Сбрасываем аутентификацию
-            state.authToken = null;
-            localStorage.removeItem(CONFIG.tokenStorageKey);
-            localStorage.removeItem(CONFIG.teamIdStorageKey);
+            showError('У вас пока нет команды. Обратитесь к администратору.');
+            logout();
             return;
           }
-        } catch (userInfoError) {
-          console.error('Cannot check superuser status:', userInfoError);
-          // Если не можем проверить статус суперпользователя - запрещаем вход
-          showError('Не удалось проверить права доступа. Обратитесь к администратору.');
-          state.authToken = null;
-          localStorage.removeItem(CONFIG.tokenStorageKey);
-          localStorage.removeItem(CONFIG.teamIdStorageKey);
+        } catch (e) {
+          console.error('Cannot check superuser status:', e);
+          showError('Ошибка проверки прав доступа');
+          logout();
           return;
         }
         
       } catch(e){ 
         console.error('Failed to get user profile:', e);
-        showError('Ошибка при получении профиля пользователя');
-        state.authToken = null;
-        localStorage.removeItem(CONFIG.tokenStorageKey);
-        localStorage.removeItem(CONFIG.teamIdStorageKey);
-        return;
+        showError('Ошибка получения профиля');
+        logout();
       }
     }
 
-    function useProvidedToken(){ hideError(); const t=$('#tokenInput').value.trim(); if(!t){ showError('Вставьте токен'); return; } setAuthAndMaybeTeam(t, $('#teamIdInput').value.trim()); }
     function logout(){ 
       localStorage.removeItem(CONFIG.tokenStorageKey);
       localStorage.removeItem(CONFIG.teamIdStorageKey);
       state.authToken = null; 
       state.teamId = null; 
+      state.userRole = null;
       state.tasks = []; 
       state.meetings = [];
       setStatus('');
@@ -369,25 +414,14 @@
       renderAuthNeeded(); 
     }
 
-    /*********************** Добавление ***********************/
+    // Добавление задач и встреч
     async function addTask(){
-      if(!state.authToken){ 
-        showError('Сначала войдите'); 
-        return; 
-      }
-      
-      // Суперпользователи не могут создавать задачи
-      if(!state.teamId) {
-        showError('Суперпользователи не могут создавать задачи без команды');
-        return;
-      }
+      if(!state.authToken){ showError('Сначала войдите'); return; }
+      if(!canUserCreate()){ showError('Недостаточно прав для создания задач'); return; }
       
       const name=$('#taskName').value.trim(); 
       const desc=$('#taskDesc').value.trim(); 
-      if(!name){ 
-        alert('Введите название задачи'); 
-        return; 
-      }
+      if(!name){ alert('Введите название задачи'); return; }
       
       const ymd=toYMD(state.selectedDate); 
       const payload={name, description: desc||null, deadline_at:`${ymd}T00:00:00`};
@@ -406,23 +440,13 @@
       }
       renderViews();
     }
+
     async function addMeeting(){
-      if(!state.authToken){ 
-        showError('Сначала войдите'); 
-        return; 
-      }
-      
-      // Суперпользователи не могут создавать встречи
-      if(!state.teamId) {
-        showError('Суперпользователи не могут создавать встречи без команды');
-        return;
-      }
+      if(!state.authToken){ showError('Сначала войдите'); return; }
+      if(!canUserCreate()){ showError('Недостаточно прав для создания встреч'); return; }
       
       const title=$('#meetTitle').value.trim(); 
-      if(!title){ 
-        alert('Введите заголовок'); 
-        return; 
-      }
+      if(!title){ alert('Введите заголовок'); return; }
       
       const ymd=toYMD(state.selectedDate);
       const sDate=$('#meetStartDate').value||ymd; 
@@ -450,9 +474,78 @@
       renderViews();
     }
 
-    /*********************** Навигация/старт ***********************/
-    function setView(v){ state.view=v; $('#btnMonth').classList.toggle('primary', v==='month'); $('#btnDay').classList.toggle('primary', v==='day'); }
+    // Навигация
+    function setView(v){ 
+      state.view=v; 
+      $('#btnMonth').classList.toggle('primary', v==='month'); 
+      $('#btnDay').classList.toggle('primary', v==='day'); 
+    }
 
+    // Инициализация
+    (function start(){
+      setView('month');
+      const savedToken = localStorage.getItem(CONFIG.tokenStorageKey);
+      const savedTeamId = localStorage.getItem(CONFIG.teamIdStorageKey);
+      
+      state.authToken = null;
+      state.teamId = null;
+      state.userRole = null;
+      state.tasks = [];
+      state.meetings = [];
+      setStatus('');
+      
+      if(savedToken) state.authToken = savedToken; 
+      if(savedTeamId && savedTeamId !== 'superuser') state.teamId = Number(savedTeamId);
+      
+      $('#logout').style.display = state.authToken ? 'inline-block' : 'none';
+      
+      if(state.authToken && state.teamId){ 
+        loadUserInfoAndUpdateUI();
+      } else if (state.authToken && savedTeamId === 'superuser') {
+        checkSuperuserStatus();
+      } else { 
+        renderAuthNeeded(); 
+      }
+      
+      $('#currentDate').textContent = formatHuman(state.selectedDate);
+    })();
+
+    async function loadUserInfoAndUpdateUI() {
+      try {
+        const userInfo = await apiGet(CONFIG.baseUrl + CONFIG.meEndpoint);
+        state.userRole = userInfo.role_in_team;
+        updateUIBasedOnPermissions();
+        await loadAll();
+      } catch (e) {
+        console.error('Failed to load user info:', e);
+        await loadAll();
+      }
+    }
+
+    async function checkSuperuserStatus() {
+      try {
+        const fullUserInfo = await apiGet(CONFIG.baseUrl + CONFIG.userInfoEndpoint);
+        if (fullUserInfo.is_superuser) {
+          state.teamId = null;
+          state.userRole = null;
+          $('#loginCard').style.display = 'none';
+          $('#registerPrompt').style.display = 'none'; // Добавляем эту строку
+          $('#logout').style.display = 'inline-block';
+          setStatus('Суперпользователь');
+          updateUIBasedOnPermissions();
+          await loadAll();
+        } else {
+          showError('Нет прав доступа');
+          logout();
+        }
+      } catch (e) {
+        console.error('Failed to check superuser status:', e);
+        showError('Ошибка проверки прав');
+        logout();
+      }
+    }
+
+    // Event listeners
     $('#btnMonth').addEventListener('click', ()=>{ setView('month'); renderViews(); });
     $('#btnDay').addEventListener('click', ()=>{ setView('day'); renderViews(); });
     $('#prevDay').addEventListener('click', ()=>{ state.selectedDate=addDays(state.selectedDate,-1); renderViews(); });
@@ -463,67 +556,6 @@
     $('#addMeeting').addEventListener('click', addMeeting);
     $('#btnLogin').addEventListener('click', doLogin);
     $('#logout').addEventListener('click', logout);
-
-    (function start(){
-      setView('month');
-      const savedToken = localStorage.getItem(CONFIG.tokenStorageKey);
-      const savedTeamId = localStorage.getItem(CONFIG.teamIdStorageKey);
-      
-      // Полностью сбрасываем состояние
-      state.authToken = null;
-      state.teamId = null;
-      state.tasks = [];
-      state.meetings = [];
-      setStatus('');
-      
-      if(savedToken){ 
-        state.authToken = savedToken; 
-      }
-      
-      if(savedTeamId){ 
-        if (savedTeamId === 'superuser') {
-          state.teamId = null;
-          // Для суперпользователя при перезагрузке нужно заново проверить статус
-          checkSuperuserStatus();
-          return;
-        } else {
-          state.teamId = Number(savedTeamId); 
-        }
-      }
-      
-      $('#logout').style.display = state.authToken ? 'inline-block' : 'none';
-      
-      if(state.authToken && state.teamId){ 
-        loadAll(); 
-      } else if (state.authToken && !state.teamId) {
-        // Если есть токен, но нет teamId - проверяем, суперпользователь ли это
-        checkSuperuserStatus();
-      } else { 
-        renderAuthNeeded(); 
-      }
-      
-      $('#currentDate').textContent = formatHuman(state.selectedDate);
-    })();
-    async function checkSuperuserStatus() {
-      try {
-        const fullUserInfo = await apiGet(CONFIG.baseUrl + CONFIG.userInfoEndpoint);
-        if (fullUserInfo.is_superuser) {
-          state.teamId = null;
-          $('#loginCard').style.display = 'none';
-          $('#logout').style.display = 'inline-block';
-          setStatus('Аве, Цезарь, идущие на смерть приветствуют тебя');
-          await loadAll();
-        } else {
-          // Обычный пользователь без команды - разлогиниваем
-          showError('У вас нет прав доступа. Обратитесь к администратору.');
-          logout();
-        }
-      } catch (e) {
-        console.error('Failed to check superuser status:', e);
-        showError('Ошибка при проверке прав доступа');
-        logout();
-      }
-    }
   </script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 
 from .validators import _validate_times
 from src.core.dependencies import CurrentUser, SessionDep
