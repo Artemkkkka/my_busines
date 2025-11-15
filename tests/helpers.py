@@ -47,8 +47,9 @@ async def _make_meeting(
     title: str = "mtg",
     description: str | None = None,
     status: str = "scheduled",
+    participants: list[User] = None,
 ) -> Meeting:
-    obj = Meeting(
+    meeting = Meeting(
         team_id=team_id,
         title=title,
         description=description,
@@ -56,10 +57,13 @@ async def _make_meeting(
         ends_at=ends_at,
         status=status,
     )
-    session.add(obj)
+    if participants:
+        meeting.participants.extend(participants)
+    
+    session.add(meeting)
     await session.commit()
-    await session.refresh(obj)
-    return obj
+    await session.refresh(meeting)
+    return meeting
 
 async def _make_task(
     session: AsyncSession,

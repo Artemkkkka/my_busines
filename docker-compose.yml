@@ -5,19 +5,19 @@ services:
   database:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: default_user
-      POSTGRES_PASSWORD: default_pass
-      POSTGRES_DB: busines_db
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
 
   api:
     build: .
     environment:
-      DATABASE_URL: postgresql+asyncpg://default_user:default_pass@database:5432/busines_db
+      DATABASE_URL: ${DB_URL}
     ports:
-      - "8000:8000"
+      - "${API_PORT}:8000"
     volumes:
       - ./:/app

@@ -42,15 +42,19 @@ async def test_get_user_meetings_respects_status_time_and_limit(session: AsyncSe
     )
     m_ok = await _make_meeting(
         session, team_id=team.id,
-        starts_at=now - timedelta(hours=2), ends_at=now - timedelta(hours=1, minutes=30)
+        starts_at=now - timedelta(hours=2),
+        ends_at=now - timedelta(hours=1, minutes=30),
+        participants=[req],
     )
     await _make_meeting(
         session, team_id=team.id, status="canceled",
-        starts_at=now - timedelta(hours=1), ends_at=now - timedelta(minutes=30)
+        starts_at=now - timedelta(hours=1), ends_at=now - timedelta(minutes=30),
+        participants=[req]
     )
     await _make_meeting(
         session, team_id=other_team.id,
-        starts_at=now - timedelta(hours=2), ends_at=now - timedelta(hours=1, minutes=30)
+        starts_at=now - timedelta(hours=2), ends_at=now - timedelta(hours=1, minutes=30),
+        participants=[req]
     )
 
     result = await MeetingCRUD.get_user_meetings(

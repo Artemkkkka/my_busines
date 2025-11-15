@@ -5,7 +5,7 @@ services:
     environment:
       TESTING: "1"
       PYTHONDONTWRITEBYTECODE: "1"
-      DATABASE_URL: "sqlite+aiosqlite:///:memory:"
+      DATABASE_URL: ${TEST_DB_URL}
     volumes:
       - ./:/app
     command: >

@@ -81,7 +81,9 @@ class MeetingCRUD:
         if requester.team_id is None:
             return []
 
-        filters = [Meeting.team_id == requester.team_id]
+        filters = [
+            Meeting.participants.any(id=requester.id),
+        ]
         if not include_canceled:
             filters.append(Meeting.status == MeetingStatus.scheduled)
         if starts_after is not None:
@@ -92,7 +94,6 @@ class MeetingCRUD:
         stmt = (
             select(Meeting)
             .where(and_(*filters))
-            .options(selectinload(Meeting.participants))
             .order_by(Meeting.starts_at.asc(), Meeting.id.asc())
         )
         if limit is not None:

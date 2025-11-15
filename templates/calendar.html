@@ -323,7 +323,7 @@
     function hideError(){ $('#err').style.display='none'; }
     function renderAuthNeeded(){ 
       $('#loginCard').style.display='block';
-      $('#registerPrompt').style.display='block'; // Добавляем эту строку
+      $('#registerPrompt').style.display='block';
       $('#monthView').style.display='none';
       $('#dayView').style.display='none';
       $('#logout').style.display='none';
@@ -411,6 +411,7 @@
       state.meetings = [];
       setStatus('');
       $('#logout').style.display = 'none';
+      $('#registerPrompt').style.display = 'block';
       renderAuthNeeded(); 
     }
 

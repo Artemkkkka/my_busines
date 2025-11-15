@@ -24,10 +24,10 @@ class Settings(BaseSettings):
         case_sensitive=False,
         env_nested_delimiter="__",
         env_prefix="APP_CONFIG__",
+        extra='ignore',
     )
     run: RunConfig = RunConfig()
     db: DatabaseConfig
-    db_test: str = "postgresql+asyncpg://postgres_test:postgres_test@db_test:5432/postgres_test"
     secret: str
 
 

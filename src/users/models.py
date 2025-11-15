@@ -1,7 +1,7 @@
 import enum
 
 from fastapi_users_db_sqlalchemy  import SQLAlchemyBaseUserTable
-from sqlalchemy import Enum, ForeignKey
+from sqlalchemy import Enum, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.models.base import Base

@@ -58,10 +58,26 @@ async def get_meetings_by_date(
 async def get_user_meetings(
     session: SessionDep,
     current_user: CurrentUser,
+    include_canceled: bool = Query(
+        False, description="Include canceled meetings"
+    ),
+    starts_after: datetime | None = Query(
+        None, description="Filter meetings starting after this time"
+    ),
+    ends_before: datetime | None = Query(
+        None, description="Filter meetings ending before this time"
+    ),
+    limit: int | None = Query(
+        None, description="Limit the number of results"
+    ),
 ):
     list_meetings = await crud.get_user_meetings(
         session=session,
         requester=current_user,
+        include_canceled=include_canceled,
+        starts_after=starts_after,
+        ends_before=ends_before,
+        limit=limit,
     )
 
     return list_meetings
@@ -84,7 +100,6 @@ async def get_team_meetings(
 async def get_meeting(
     meeting_id: int,
     session: SessionDep,
-    # current_user: User = Depends(require_team_admin_or_superuser),
 ):
     return await crud.get_meeting(
         meeting_id=meeting_id,

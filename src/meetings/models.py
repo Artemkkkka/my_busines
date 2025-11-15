@@ -54,11 +54,11 @@ class Meeting(Base, TimestampMixin):
         comment="Описание/повестка встречи (опционально)",
     )
     starts_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), index=True,
+        DateTime, index=True,
         comment="Дата и время начала (с таймзоной)",
     )
     ends_at:   Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), index=True,
+        DateTime, index=True,
         comment="Дата и время окончания (с таймзоной)",
     )
     status: Mapped[MeetingStatus] = mapped_column(
@@ -71,6 +71,7 @@ class Meeting(Base, TimestampMixin):
         lazy="selectin",
         backref=backref(
             "meetings", lazy="selectin",
+
             doc="Встречи, в которых участвует пользователь",
         ),
         doc="Участники встречи (многие-ко-многим)",
